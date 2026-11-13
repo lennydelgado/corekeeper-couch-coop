@@ -57,6 +57,7 @@ namespace CouchCoop
             ["hint.tabs"] = ("LB/RB: tabs", "LB/RB : onglets"),
             ["hint.pads"] = ("Left/Right: move   A: save   B: unassign   Select: cancel", "Gauche/Droite : déplacer   A : valider   B : retirer   Select : annuler"),
             ["hint.list"] = ("Up/Down: choose   A: change   B: close", "Haut/Bas : choisir   A : changer   B : fermer"),
+            ["card.p2.ready"] = ("Ready to join", "Prêt à rejoindre"),
             ["card.copy"] = ("copy", "copier"),
             ["card.hide"] = ("hide", "masquer"),
         };

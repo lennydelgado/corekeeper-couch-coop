@@ -268,26 +268,56 @@ namespace CouchCoop.UI
             if (_open) DrawHub(u);
         }
 
+        private float _cardWaitSince = -1f;
+        private const float CardMaxWait = 15f;
+
+        /// <summary>
+        /// Connection card (top left). Sized to its content so no text ever overflows.
+        /// It waits for the game's UI sprites and fonts so it appears directly in the game's style;
+        /// after 15 s without them it shows the fallback frame so the join info is never missing.
+        /// </summary>
         private void DrawCard(int u)
         {
+            if (!GameUI.IsReady(GameUI.Frame.Box))
+            {
+                if (_cardWaitSince < 0f) _cardWaitSince = Time.unscaledTime;
+                if (Time.unscaledTime - _cardWaitSince < CardMaxWait) return;
+            }
+
             var c = Duo.ConnectionInfo;
-            var r = new Rect(4 * u, 4 * u, 170 * u, 44 * u);
+            bool hasInfo = c != null && !string.IsNullOrEmpty(c.password);
+
+            string status, detail; Color dot;
+            if (Duo.IsJ2)
+            {
+                status = L10n.T(hasInfo ? "card.p2.ready" : "status.waitInfo");
+                detail = hasInfo ? L10n.T("duo.howto") : null;
+                dot = hasInfo ? GameUI.Ok : GameUI.Warn;
+            }
+            else if (Duo.ServerReady) { status = L10n.T("status.ready"); detail = L10n.T("duo.howto"); dot = GameUI.Ok; }
+            else if (Duo.ServerRunning) { status = L10n.T(Duo.J2Pending ? "status.p2wait" : "status.starting"); detail = null; dot = GameUI.Warn; }
+            else { status = L10n.T("status.stopped"); detail = null; dot = GameUI.Bad; }
+
+            string address = hasInfo ? $"{c.ip}:{c.port}  {c.password}" : null;
+            string keys = "F6 " + L10n.T("card.copy") + "   F7 " + L10n.T("card.hide");
+
+            // Lines: [badge + dot + status], detail, address, keys
+            float pad = 7 * u, lineL = GameUI.LineHeight(GameUI.Font.Large), lineS = GameUI.LineHeight(GameUI.Font.Small) + 3 * u;
+            float headerW = 20 * u + 10 * u + GameUI.Width(status, GameUI.Font.Medium);
+            float contentW = Mathf.Max(headerW, GameUI.Width(detail, GameUI.Font.Small), GameUI.Width(address, GameUI.Font.Small), GameUI.Width(keys, GameUI.Font.Small));
+            float w = Mathf.Min(Screen.width - 8 * u, contentW + 2 * pad + 2 * u);
+            float h = pad + lineL + 4 * u + (detail != null ? lineS : 0) + (address != null ? lineS : 0) + lineS + pad - 3 * u;
+            var r = new Rect(4 * u, 4 * u, Mathf.Round(w), Mathf.Round(h));
             GameUI.Draw(GameUI.Frame.Box, r);
 
-            string status; Color dot;
-            if (Duo.IsJ2) { status = c != null ? L10n.T("duo.howto") : L10n.T("status.waitInfo"); dot = c != null ? GameUI.Ok : GameUI.Warn; }
-            else if (Duo.ServerReady) { status = L10n.T("status.ready"); dot = GameUI.Ok; }
-            else if (Duo.ServerRunning) { status = L10n.T(Duo.J2Pending ? "status.p2wait" : "status.starting"); dot = GameUI.Warn; }
-            else { status = L10n.T("status.stopped"); dot = GameUI.Bad; }
-
-            float x = r.x + 7 * u;
-            GameUI.Text(new Rect(x, r.y + 5 * u, 20 * u, 12 * u), L10n.T(Duo.IsJ2 ? "pads.p2" : "pads.p1"), GameUI.Font.Large, Duo.IsJ2 ? GameUI.P2 : GameUI.P1);
-            GameUI.Draw(GameUI.Frame.Box, new Rect(x + 22 * u, r.y + 8 * u, 6 * u, 6 * u), dot);
-            GameUI.Text(new Rect(x + 32 * u, r.y + 5 * u, r.width - 46 * u, 12 * u), status, GameUI.Font.Medium, GameUI.White);
-
-            string line = c != null && !string.IsNullOrEmpty(c.password) ? $"{c.ip}:{c.port}  -  {c.password}" : "-";
-            GameUI.Text(new Rect(x, r.y + 19 * u, r.width - 14 * u, 10 * u), line, GameUI.Font.Small, GameUI.Dim);
-            GameUI.Text(new Rect(x, r.y + 30 * u, r.width - 14 * u, 9 * u), "F6 " + L10n.T("card.copy") + "   F7 " + L10n.T("card.hide"), GameUI.Font.Small, GameUI.Dim);
+            float x = r.x + pad, y = r.y + pad, inner = r.width - 2 * pad;
+            GameUI.Text(new Rect(x, y, 20 * u, lineL), L10n.T(Duo.IsJ2 ? "pads.p2" : "pads.p1"), GameUI.Font.Large, Duo.IsJ2 ? GameUI.P2 : GameUI.P1);
+            GameUI.Draw(GameUI.Frame.Box, new Rect(x + 20 * u, y + (lineL - 5 * u) / 2f, 5 * u, 5 * u), dot);
+            GameUI.Text(new Rect(x + 30 * u, y, inner - 30 * u, lineL), status, GameUI.Font.Medium, GameUI.White);
+            y += lineL + 4 * u;
+            if (detail != null) { GameUI.Text(new Rect(x, y, inner, lineS), detail, GameUI.Font.Small, GameUI.Gold); y += lineS; }
+            if (address != null) { GameUI.Text(new Rect(x, y, inner, lineS), address, GameUI.Font.Small, GameUI.Dim); y += lineS; }
+            GameUI.Text(new Rect(x, y, inner, lineS), keys, GameUI.Font.Small, GameUI.Dim);
         }
 
         private void DrawToast(int u)

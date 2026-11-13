@@ -43,6 +43,9 @@ namespace CouchCoop.UI
             GUI.color = old;
         }
 
+        /// <summary>True once the game's sprite for this frame and its fonts are loaded (no fallback needed).</summary>
+        public static bool IsReady(Frame f) => GetSprite(f) != null && GetFont(Font.Medium) != null;
+
         private static Sprite GetSprite(Frame f)
         {
             if (Sprites.TryGetValue(f, out var s) && s != null) return s;
@@ -89,13 +92,34 @@ namespace CouchCoop.UI
             GUI.DrawTextureWithTexCoords(dst, tex, uv, true);
         }
 
+        /// <summary>
+        /// Pixel-art frame in the game's palette (dark outline, light rim, flat fill), used until the game's
+        /// UI sprites are loaded (they only load with some menus, e.g. not yet on P2's title screen).
+        /// </summary>
         private static void FallbackBox(Rect r, Frame f)
         {
-            var c = f == Frame.Window ? new Color(0.13f, 0.14f, 0.16f, 0.96f) : f == Frame.Slot ? new Color(0.55f, 0.36f, 0.16f, 0.95f) : new Color(0.26f, 0.33f, 0.47f, 0.95f);
-            var old = GUI.color;
-            GUI.color = old * c;
+            Color outline, rim, fill;
+            switch (f)
+            {
+                case Frame.Window: outline = new Color(0.05f, 0.09f, 0.10f); rim = new Color(0.66f, 0.71f, 0.91f); fill = new Color(0.21f, 0.21f, 0.21f, 0.97f); break;
+                case Frame.Slot: outline = new Color(0.22f, 0.13f, 0.07f); rim = new Color(0.86f, 0.62f, 0.42f); fill = new Color(0.55f, 0.34f, 0.15f); break;
+                case Frame.CheckOff: case Frame.CheckOn: outline = Color.clear; rim = Color.white; fill = Color.clear; break;
+                default: outline = new Color(0.14f, 0.20f, 0.36f); rim = new Color(0.45f, 0.58f, 0.86f); fill = new Color(0.26f, 0.33f, 0.47f, 0.97f); break;
+            }
+            float p = Px;
+            var tint = GUI.color;
+            Fill(r, outline, tint);
+            Fill(new Rect(r.x + p, r.y + p, r.width - 2 * p, r.height - 2 * p), rim, tint);
+            Fill(new Rect(r.x + 2 * p, r.y + 2 * p, r.width - 4 * p, r.height - 4 * p), fill, tint);
+            if (f == Frame.CheckOn) Fill(new Rect(r.x + r.width * 0.3f, r.y + r.height * 0.3f, r.width * 0.4f, r.height * 0.4f), Color.white, tint);
+            GUI.color = tint;
+        }
+
+        private static void Fill(Rect r, Color c, Color tint)
+        {
+            if (c.a <= 0f || r.width <= 0f || r.height <= 0f) return;
+            GUI.color = tint * c;
             GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = old;
         }
 
         // ---------------------------------------------------------------- text
@@ -127,10 +151,13 @@ namespace CouchCoop.UI
             if (font == null) { FallbackText(r, text, f, color, anchor); return; }
 
             int px = Px;
-            // Step the scale down (never below 1) if the line does not fit.
-            while (px > 1 && Measure(font, text) * px > r.width) px--;
-
             string[] lines = text.Split('\n');
+            float widest = 0f;
+            foreach (var l in lines) widest = Mathf.Max(widest, Measure(font, l));
+            // Step the scale down (never below 1) if the text does not fit, then shorten what still overflows.
+            while (px > 1 && widest * px > r.width) px--;
+            for (int i = 0; i < lines.Length; i++) lines[i] = Truncate(font, lines[i], r.width / px);
+
             float lineH = (font.charDims.y + font.lineSpacing) * px;
             float blockH = lines.Length * lineH - font.lineSpacing * px;
             float y = anchor == TextAnchor.UpperLeft || anchor == TextAnchor.UpperCenter || anchor == TextAnchor.UpperRight ? r.y
@@ -153,6 +180,23 @@ namespace CouchCoop.UI
         }
 
         private static string Prepare(PugFont font, string s) => font.allCaps ? s.ToUpperInvariant() : s;
+
+        private static string Truncate(PugFont font, string s, float maxWidth)
+        {
+            if (Measure(font, s) <= maxWidth) return s;
+            while (s.Length > 1 && Measure(font, s + "..") > maxWidth) s = s.Substring(0, s.Length - 1);
+            return s.TrimEnd() + "..";
+        }
+
+        /// <summary>Width of the text in screen pixels at the current scale (approximate when the font is not loaded).</summary>
+        public static float Width(string text, Font f)
+        {
+            var font = GetFont(f);
+            float widest = 0f;
+            foreach (var l in (text ?? "").Split('\n'))
+                widest = Mathf.Max(widest, font != null ? Measure(font, l) * Px : l.Length * LineHeight(f) * 0.6f);
+            return widest;
+        }
 
         private static bool TryGlyph(PugFont font, char c, out PugFont.GlyphData g)
         {
