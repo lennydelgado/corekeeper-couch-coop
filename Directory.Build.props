@@ -1,0 +1,43 @@
+<Project>
+  <!--
+    Settings shared by both mods (CouchCoop, NotProtonFixes).
+    The DLLs are compiled against the installed game's assemblies; none of them is redistributed.
+    Game path override: dotnet build -p:GameDir="C:/Program Files (x86)/Steam/steamapps/common/Core Keeper"
+  -->
+  <PropertyGroup>
+    <!-- netstandard2.1: required by PugMod.IMod (default interface method), supported by Unity 6's Mono -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <Version>1.0.0</Version>
+    <Authors>ZenetiK</Authors>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)build/$(MSBuildProjectName)/</OutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+
+    <GameDir Condition="'$(GameDir)' == '' And Exists('$(HOME)/Library/Application Support/Steam/steamapps/common/Core Keeper')">$(HOME)/Library/Application Support/Steam/steamapps/common/Core Keeper</GameDir>
+    <GameDir Condition="'$(GameDir)' == '' And Exists('C:/Program Files (x86)/Steam/steamapps/common/Core Keeper')">C:/Program Files (x86)/Steam/steamapps/common/Core Keeper</GameDir>
+    <GameDir Condition="'$(GameDir)' == '' And Exists('$(HOME)/.local/share/Steam/steamapps/common/Core Keeper')">$(HOME)/.local/share/Steam/steamapps/common/Core Keeper</GameDir>
+    <GameManaged>$(GameDir)/CoreKeeper_Data/Managed</GameManaged>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)src/Shared/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="0Harmony"><HintPath>$(GameManaged)/0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManaged)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule"><HintPath>$(GameManaged)/UnityEngine.JSONSerializeModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Pug.Other"><HintPath>$(GameManaged)/Pug.Other.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Pug.Base"><HintPath>$(GameManaged)/Pug.Base.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PugMod.SDK.Runtime"><HintPath>$(GameManaged)/PugMod.SDK.Runtime.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(GameManaged)/Pug.Other.dll')"
+           Text="Core Keeper not found ($(GameManaged)). Pass -p:GameDir=&quot;.../steamapps/common/Core Keeper&quot;." />
+  </Target>
+</Project>

@@ -1,0 +1,16 @@
+{
+    "guid": "b7e41d02-5c8a-4f3e-a6d9-2e1f0c9b8a73",
+    "name": "CouchCoop",
+    "displayName": "Couch Co-op (local split screen)",
+    "skipSafetyChecks": true,
+    "disableScripts": false,
+    "accessesExtraAssemblies": true,
+    "disableHarmonyPatching": false,
+    "requiredOn": 0,
+    "files": [
+        { "path": "CouchCoop.dll", "guid": "" }
+    ],
+    "dependencies": [
+        { "modName": "NotProtonFixes", "required": false }
+    ]
+}

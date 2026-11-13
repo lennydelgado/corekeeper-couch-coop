@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Fixes for Core Keeper under Wine/NotProton (macOS). Inactive elsewhere. -->
+  <PropertyGroup>
+    <AssemblyName>NotProtonFixes</AssemblyName>
+    <RootNamespace>NotProtonFixes</RootNamespace>
+  </PropertyGroup>
+</Project>

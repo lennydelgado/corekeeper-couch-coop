@@ -1,0 +1,11 @@
+build/
+obj/
+dist/
+bin/
+*.user
+.DS_Store
+.vs/
+.idea/
+
+# Private release notes (drafts, posts, contacts)
+docs/release/

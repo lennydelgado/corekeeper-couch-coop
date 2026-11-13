@@ -1,0 +1,14 @@
+{
+    "guid": "3c9f2a4e-8b1d-4f6a-9e2c-7d5b1a0f4e81",
+    "name": "NotProtonFixes",
+    "displayName": "NotProton Fixes (macOS)",
+    "skipSafetyChecks": true,
+    "disableScripts": false,
+    "accessesExtraAssemblies": true,
+    "disableHarmonyPatching": false,
+    "requiredOn": 0,
+    "files": [
+        { "path": "NotProtonFixes.dll", "guid": "" }
+    ],
+    "dependencies": []
+}
