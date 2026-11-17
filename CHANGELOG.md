@@ -4,7 +4,7 @@
 
 ### CouchCoop
 - macOS: the top half no longer overlaps the bottom one. Halves are placed in the screen's work area, below the menu bar (hide the menu bar automatically to use the whole screen).
-- The server world is backed up each time split screen starts (5 rotating copies in `CouchCoop/Backups`).
+- The server world is backed up each time split screen starts (5 rotating copies in `CouchCoop/Backups/session`).
 - If P1 crashes, P2 asks the server to save and stop, then closes. A server left running is reused next time instead of starting a second one.
 - The hub also opens by holding both stick clicks (L3 + R3) for 1 s, for controllers whose Select is not seen (some Xbox controllers over Bluetooth). The first Select / Start press of each controller is logged.
 - Each player is told when their controller disconnects and reconnects.

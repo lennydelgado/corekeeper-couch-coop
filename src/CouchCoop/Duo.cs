@@ -38,6 +38,8 @@ namespace CouchCoop
         private static string Pdp => Application.persistentDataPath.Replace('\\', '/').TrimEnd('/');
         public static string ShareDir => Pdp + "/CouchCoop";
         private static string HandoffPath => ShareDir + "/connection.json";
+        /// <summary>Process id of the server this mod started, to recognise it after a P1 crash.</summary>
+        private static string ServerPidPath => ShareDir + "/server.pid";
         /// <summary>Local server world. A world from the development builds (.../DuoServer) is reused as is.</summary>
         public static string ServerDataPath =>
             !Directory.Exists(ShareDir + "/Server") && Directory.Exists(Pdp + "/DuoServer") ? Pdp + "/DuoServer" : ShareDir + "/Server";
@@ -112,7 +114,7 @@ namespace CouchCoop
             if (!IsRunning(_serverProcess)) AdoptOrphanServer();
             if (!IsRunning(_serverProcess))
             {
-                WorldBackup.Save("local server world, before a split-screen session",
+                WorldBackup.Save(WorldBackup.Session, "local server world, before a split-screen session",
                     Path.Combine(ServerDataPath, "worlds", "0.world.gzip"), Path.Combine(ServerDataPath, "worldinfos", "0.worldinfo"));
                 StartServer();
             }
@@ -224,6 +226,8 @@ namespace CouchCoop
 
                 _serverStartedUtc = DateTime.UtcNow;
                 _serverProcess = Process.Start(psi);
+                try { SafeFile.WriteAllText(ServerPidPath, SafePid(_serverProcess).ToString()); }
+                catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} server pid not saved: {e.Message}"); }
                 Debug.Log($"{CouchCoopMod.Tag} dedicated server started ({ServerExe})");
                 Perf.BoostServer(_serverProcess);
             }
@@ -237,13 +241,22 @@ namespace CouchCoop
         private static void StopServer()
         {
             if (!IsRunning(_serverProcess)) return;
+            StopGracefully(SafePid(_serverProcess), "local server");
+        }
+
+        /// <summary>
+        /// Asks a process to close like Launch.ps1 does (taskkill without /f): the server saves before quitting,
+        /// a game window closes normally. force = /f, only for a window that does not answer.
+        /// </summary>
+        public static void StopGracefully(int pid, string what, bool force = false)
+        {
+            if (pid <= 0) return;
             try
             {
-                // Graceful stop like Launch.ps1 (taskkill without /f): the server saves before quitting.
-                Process.Start(new ProcessStartInfo("taskkill.exe", $"/pid {_serverProcess.Id}") { UseShellExecute = false });
-                Debug.Log($"{CouchCoopMod.Tag} local server stop requested");
+                Process.Start(new ProcessStartInfo("taskkill.exe", (force ? "/f " : "") + $"/pid {pid}") { UseShellExecute = false });
+                Debug.Log($"{CouchCoopMod.Tag} {what} stop requested (pid {pid}{(force ? ", forced" : "")})");
             }
-            catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} server stop: {e.Message}"); }
+            catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} {what} stop: {e.Message}"); }
         }
 
         private static void LaunchJ2Window()
@@ -273,23 +286,31 @@ namespace CouchCoop
         }
 
         /// <summary>
-        /// A server left running by a previous session (P1 crashed) still holds the port and the world:
+        /// The server this mod started in a previous session (pid saved in server.pid), if it still runs.
+        /// Any other CoreKeeperServer (a dedicated server the player runs themself) is never touched.
+        /// </summary>
+        public static Process LeftoverServer()
+        {
+            try
+            {
+                if (!int.TryParse(SafeFile.ReadAllTextOrNull(ServerPidPath)?.Trim(), out int pid) || pid <= 0) return null;
+                var p = Process.GetProcessById(pid);
+                return IsRunning(p) && p.ProcessName.StartsWith("CoreKeeperServer", StringComparison.OrdinalIgnoreCase) ? p : null;
+            }
+            catch { return null; } // not running anymore
+        }
+
+        /// <summary>
+        /// The server left running by a crashed session still holds the port and the world:
         /// reuse it instead of starting a second one.
         /// </summary>
         private static void AdoptOrphanServer()
         {
-            try
-            {
-                foreach (var p in Process.GetProcessesByName("CoreKeeperServer"))
-                {
-                    if (!IsRunning(p)) continue;
-                    _serverProcess = p;
-                    _serverStartedUtc = DateTime.MinValue; // its GameInfo.txt is already there
-                    Debug.Log($"{CouchCoopMod.Tag} reusing the local server left running (pid {p.Id})");
-                    return;
-                }
-            }
-            catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} server lookup: {e.Message}"); }
+            var p = LeftoverServer();
+            if (p == null) return;
+            _serverProcess = p;
+            _serverStartedUtc = DateTime.MinValue; // its GameInfo.txt is already there
+            Debug.Log($"{CouchCoopMod.Tag} reusing the local server left running (pid {p.Id})");
         }
 
         // ---------------- P2: close with P1 ----------------
@@ -316,12 +337,7 @@ namespace CouchCoop
 
             _closing = true;
             Debug.Log($"{CouchCoopMod.Tag} P1 is gone: stopping the local server and closing P2");
-            int server = ConnectionInfo?.serverPid ?? 0;
-            if (server > 0)
-            {
-                try { Process.Start(new ProcessStartInfo("taskkill.exe", $"/pid {server}") { UseShellExecute = false }); }
-                catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} server stop: {e.Message}"); }
-            }
+            StopGracefully(ConnectionInfo?.serverPid ?? 0, "local server");
             Application.Quit();
         }
 
