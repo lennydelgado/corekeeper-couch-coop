@@ -365,7 +365,7 @@ namespace CouchCoop.UI
                     if (accept && idle && Confirm(103)) Toast(ServerWorld.BringBack(), 8f);
                     break;
                 case 4: // add a solo world to the server
-                    if (dx != 0) { Settings.SourceWorld = ServerWorld.NextSolo(Settings.SourceWorld, dx); _confirmRow = -1; }
+                    if (dx != 0) { Settings.SourceWorld = ServerWorld.NextSolo(Settings.SourceWorld, dx); ServerWorld.Invalidate(); _confirmRow = -1; }
                     else if (accept && idle && Confirm(104)) Toast(ServerWorld.AddFromSolo(Settings.SourceWorld), 8f);
                     break;
             }
@@ -587,29 +587,25 @@ namespace CouchCoop.UI
         private List<Row> WorldRows()
         {
             bool idle = ServerWorld.NoServerRunning;
+            var v = ServerWorld.View; // cached: building it reads up to 60 files
             string confirm = L10n.T("confirm.press");
             string running = L10n.T("world.stopFirst.short");
 
-            string current = ServerWorld.TryGetServer(ServerWorld.Current, out var cur)
-                ? $"< {cur.Index}. {Short(cur.Name)}{(cur.Generated ? " *" : "")} >" : $"< {ServerWorld.Current}. {ServerWorld.GeneratedName} >";
+            string current = $"< {v.Server.Index}. {Short(v.Server.Name)}{(v.Server.Generated ? " *" : "")} >";
 
             string backValue;
             if (!idle) backValue = running;
-            else if (!Duo.ServerWorldExists) backValue = L10n.T("world.notGenerated");
-            else
-            {
-                int target = ServerWorld.BringBackTarget(out bool same);
-                backValue = target < 0 ? L10n.T("world.noFreeSlot.short")
-                    : string.Format(L10n.T(same ? "world.backSame" : "world.backNew"), target);
-            }
+            else if (!v.WorldGenerated) backValue = L10n.T("world.notGenerated");
+            else if (v.BackTarget < 0) backValue = L10n.T("world.noFreeSlot.short");
+            else backValue = v.BackSame ? string.Format(L10n.T("world.backSame"), Short(v.BackName ?? "?"))
+                : string.Format(L10n.T("world.backNew"), v.BackTarget);
 
-            string addValue = ServerWorld.TryGetSolo(Settings.SourceWorld, out var solo)
-                ? $"< {solo.Index}. {Short(solo.Name)} >" : $"< {Settings.SourceWorld}. - >";
+            string addValue = v.HasSolo ? $"< {v.Solo.Index}. {Short(v.Solo.Name)} >" : $"< {Settings.SourceWorld}. - >";
 
             return new List<Row>
             {
                 new Row { Label = L10n.T("world.current"), Value = idle ? current : running, Enabled = idle },
-                new Row { Label = L10n.T("world.rename"), Value = _editing ? _editText + "_" : Short(ServerWorld.CurrentName), Enabled = true },
+                new Row { Label = L10n.T("world.rename"), Value = _editing ? _editText + "_" : Short(v.Server.Name), Enabled = true },
                 new Row
                 {
                     Label = L10n.T("world.new"), Enabled = idle,
@@ -617,8 +613,8 @@ namespace CouchCoop.UI
                 },
                 new Row
                 {
-                    Label = string.Format(L10n.T("world.bringBack"), Short(ServerWorld.CurrentName)),
-                    Value = Confirming(103) ? confirm : backValue, Enabled = idle && Duo.ServerWorldExists,
+                    Label = string.Format(L10n.T("world.bringBack"), Short(v.Server.Name)),
+                    Value = Confirming(103) ? confirm : backValue, Enabled = idle && v.WorldGenerated,
                 },
                 new Row { Label = L10n.T("world.add"), Value = Confirming(104) ? confirm : addValue, Enabled = idle },
             };

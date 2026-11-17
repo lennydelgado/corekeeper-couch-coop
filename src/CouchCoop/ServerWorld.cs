@@ -1,11 +1,8 @@
 using System;
-using System.Diagnostics;
 using System.IO;
-using HarmonyLib;
 using Pug.Platform;
 using Shared;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace CouchCoop
 {
@@ -50,7 +47,7 @@ namespace CouchCoop
         {
             public string name = "";
             public string guid = "";
-            public int mode;
+            public int mode = 0; // filled by JsonUtility
         }
 
         public struct Slot
@@ -60,8 +57,7 @@ namespace CouchCoop
             public bool Generated; // worldinfo only: the server creates the world on its next start
         }
 
-        private static StandaloneFilesystem MainFs =>
-            AccessTools.Field(typeof(Manager), "_filesystemInterface")?.GetValue(null) as StandaloneFilesystem;
+        private static StandaloneFilesystem MainFs => Duo.MainFilesystem;
 
         // ---------------- paths ----------------
 
@@ -72,8 +68,30 @@ namespace CouchCoop
         public static string WorldFile(int i) => Path.Combine(Duo.ServerDataPath, "worlds", $"{i}.world.gzip");
         public static string InfoFile(int i) => Path.Combine(Duo.ServerDataPath, "worldinfos", $"{i}.worldinfo");
         private static string GenFile(int i) => Path.Combine(Duo.ServerDataPath, "worldgenparams", $"{i}.json");
-        /// <summary>Solo slot this server world was last brought back to (the server world has no real guid in its worldinfo).</summary>
+        /// <summary>
+        /// Solo world this server world is linked to (added from it, or brought back to it): "slot", "guid", "name"
+        /// on three lines. A server world it generated has no real guid in its worldinfo, so the link is how bring
+        /// back finds the same solo world again. The guid (or, before the game first loads the solo world and
+        /// gives it one, the name) must still match: a different world created in that slot since is never replaced.
+        /// </summary>
         private static string LinkFile(int i) => Path.Combine(Duo.ServerDataPath, "worldinfos", $"{i}.couchcoop-solo.txt");
+
+        private static void WriteLink(int server, int solo)
+        {
+            ReadHeader(SoloInfo(solo), out var h);
+            SafeFile.WriteAllText(LinkFile(server), $"{solo}\n{h?.guid ?? ""}\n{h?.name ?? ""}");
+        }
+
+        private static bool TryReadLink(int server, out int solo)
+        {
+            solo = -1;
+            string[] lines = (SafeFile.ReadAllTextOrNull(LinkFile(server)) ?? "").Split('\n');
+            if (!int.TryParse(lines[0].Trim(), out int slot) || !TryGetSolo(slot, out var s)) return false;
+            string guid = lines.Length > 1 ? lines[1].Trim() : "", name = lines.Length > 2 ? lines[2].Trim() : "";
+            bool same = guid.Length > 0 ? s.Guid == guid : name.Length > 0 && s.Name == name;
+            if (same) solo = slot;
+            return same;
+        }
 
         public static int Current => Settings.ServerWorld;
         public static string CurrentWorldFile => WorldFile(Current);
@@ -155,7 +173,7 @@ namespace CouchCoop
         {
             sameWorld = false;
             ReadHeader(CurrentInfoFile, out var server);
-            if (int.TryParse(SafeFile.ReadAllTextOrNull(LinkFile(Current))?.Trim(), out int linked) && TryGetSolo(linked, out _))
+            if (TryReadLink(Current, out int linked))
             {
                 sameWorld = true;
                 return linked;
@@ -173,9 +191,12 @@ namespace CouchCoop
         }
 
         private static float _checkedAt = -10f;
-        private static bool _serverProcessRunning;
+        private static bool _leftoverRunning;
 
-        /// <summary>True when no CoreKeeperServer process is running (checked at most once per second).</summary>
+        /// <summary>
+        /// True when the local server is not running: neither the one of this session nor one left by a crashed
+        /// session (checked at most once per second). A dedicated server the player runs themself does not count.
+        /// </summary>
         public static bool NoServerRunning
         {
             get
@@ -184,12 +205,52 @@ namespace CouchCoop
                 if (Time.unscaledTime - _checkedAt > 1f)
                 {
                     _checkedAt = Time.unscaledTime;
-                    try { _serverProcessRunning = Process.GetProcessesByName("CoreKeeperServer").Length > 0; }
-                    catch { _serverProcessRunning = false; }
+                    _leftoverRunning = Duo.LeftoverServer() != null;
                 }
-                return !_serverProcessRunning;
+                return !_leftoverRunning;
             }
         }
+
+        // ---------------- cached view for the hub ----------------
+
+        /// <summary>What the Worlds tab shows. Reading it scans up to 60 files, so the hub reads it from <see cref="View"/>.</summary>
+        public sealed class Snapshot
+        {
+            public Slot Server;
+            public bool ServerExists, WorldGenerated;
+            public int BackTarget = -1;
+            public bool BackSame;
+            public string BackName;
+            public bool HasSolo;
+            public Slot Solo;
+        }
+
+        private static Snapshot _view;
+        private static float _viewAt = -10f;
+
+        /// <summary>Worlds tab data, refreshed at most once per second, and right after any change made here.</summary>
+        public static Snapshot View
+        {
+            get
+            {
+                if (_view != null && Time.unscaledTime - _viewAt < 1f) return _view;
+                var v = new Snapshot();
+                v.ServerExists = TryGetServer(Current, out v.Server);
+                if (!v.ServerExists) v.Server = new Slot { Index = Current, Name = GeneratedName, Generated = true };
+                v.WorldGenerated = SafeFile.Exists(CurrentWorldFile);
+                if (v.WorldGenerated)
+                {
+                    v.BackTarget = BringBackTarget(out v.BackSame);
+                    if (v.BackSame && TryGetSolo(v.BackTarget, out var target)) v.BackName = target.Name;
+                }
+                v.HasSolo = TryGetSolo(Settings.SourceWorld, out v.Solo);
+                _view = v;
+                _viewAt = Time.unscaledTime;
+                return v;
+            }
+        }
+
+        public static void Invalidate() => _view = null;
 
         // ---------------- actions (each returns the message to show) ----------------
 
@@ -198,6 +259,7 @@ namespace CouchCoop
         {
             if (!NoServerRunning) return L10n.T("world.stopFirst");
             Settings.ServerWorld = NextServer(Current, dir);
+            Invalidate();
             return null;
         }
 
@@ -211,6 +273,7 @@ namespace CouchCoop
             if (!WriteInfo(InfoFile(i), new WorldInfo { version = WorldInfo.CURRENT_VERSION, name = name, mode = mode, creationDate = new CreationDate(DateTime.Now) }))
                 return L10n.T("world.failed");
             Settings.ServerWorld = i;
+            Invalidate();
             Debug.Log($"{CouchCoopMod.Tag} new server world {i}: {name} ({mode}), generated on the next start");
             return string.Format(L10n.T("world.created"), name);
         }
@@ -222,15 +285,21 @@ namespace CouchCoop
             if (!TryGetSolo(solo, out var slot)) return L10n.T("world.noSolo");
             int i = FirstFreeServer();
             if (i < 0) return L10n.T("world.serverFull");
+            // Everything is read before anything is written, so a failure never leaves a half-copied server world.
+            var info = ReadInfo(SoloInfo(solo));
+            if (info == null) return L10n.T("world.failed");
+            info.name = WithoutPrefix(info.name);
             try
             {
-                SafeFile.WriteAllBytes(WorldFile(i), File.ReadAllBytes(SoloWorld(solo)));
-                var info = ReadInfo(SoloInfo(solo));
-                if (info == null) return L10n.T("world.failed");
-                info.name = WithoutPrefix(info.name);
+                byte[] world = File.ReadAllBytes(SoloWorld(solo));
+                string gen = SoloGen(solo);
+                byte[] genData = gen != null && SafeFile.Exists(gen) ? File.ReadAllBytes(gen) : null;
+
+                // worldinfo first: until the world file is written, the index only lists as "not generated yet".
                 if (!WriteInfo(InfoFile(i), info)) return L10n.T("world.failed");
-                if (SoloGen(solo) != null && SafeFile.Exists(SoloGen(solo))) SafeFile.WriteAllBytes(GenFile(i), File.ReadAllBytes(SoloGen(solo)));
-                SafeFile.WriteAllText(LinkFile(i), solo.ToString());
+                if (genData != null) SafeFile.WriteAllBytes(GenFile(i), genData);
+                SafeFile.WriteAllBytes(WorldFile(i), world);
+                WriteLink(i, solo);
             }
             catch (Exception e)
             {
@@ -238,6 +307,7 @@ namespace CouchCoop
                 return L10n.T("world.failed");
             }
             Settings.ServerWorld = i;
+            Invalidate();
             Debug.Log($"{CouchCoopMod.Tag} solo world {solo} ({slot.Name}) added to the local server as world {i}");
             return string.Format(L10n.T("world.added"), slot.Name);
         }
@@ -251,7 +321,9 @@ namespace CouchCoop
             if (target < 0) return L10n.T("world.noFreeSlot");
             string name = WithPrefix(CurrentName);
 
-            if (same) WorldBackup.Save(WorldBackup.BeforeReplace, $"solo world {target} before bringing server world {Current} back", SoloWorld(target), SoloInfo(target));
+            if (same && WorldBackup.Save(WorldBackup.BeforeReplace, $"solo world {target} before bringing server world {Current} back",
+                    SoloWorld(target), SoloInfo(target)) == null)
+                return L10n.T("world.backupFailed"); // never replace a solo world without its backup
             try
             {
                 SafeFile.WriteAllBytes(SoloWorld(target), File.ReadAllBytes(CurrentWorldFile));
@@ -268,7 +340,7 @@ namespace CouchCoop
                     WriteInfo(SoloInfo(target), info);
                     if (SafeFile.Exists(GenFile(Current)) && SoloGen(target) != null) SafeFile.WriteAllBytes(SoloGen(target), File.ReadAllBytes(GenFile(Current)));
                 }
-                SafeFile.WriteAllText(LinkFile(Current), target.ToString());
+                WriteLink(Current, target);
             }
             catch (Exception e)
             {
@@ -277,6 +349,7 @@ namespace CouchCoop
             }
             // The game read every worldinfo at startup: refresh this slot so the world list shows it now.
             try { Manager.saves.ReloadWorldInfo(target); } catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} world list refresh: {e.Message}"); }
+            Invalidate();
             Debug.Log($"{CouchCoopMod.Tag} server world {Current} ({name}) copied into solo slot {target} (same world: {same})");
             return string.Format(L10n.T("world.broughtBack"), name, target);
         }
@@ -290,6 +363,7 @@ namespace CouchCoop
             var info = ReadInfo(CurrentInfoFile) ?? new WorldInfo { version = WorldInfo.CURRENT_VERSION, creationDate = new CreationDate(DateTime.Now) };
             info.name = name;
             if (!WriteInfo(CurrentInfoFile, info)) return L10n.T("world.failed");
+            Invalidate();
             Debug.Log($"{CouchCoopMod.Tag} server world {Current} renamed to {name}");
             return string.Format(L10n.T("world.renamed"), name);
         }

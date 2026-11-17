@@ -47,6 +47,11 @@ namespace CouchCoop
         private static string ServerExe => Path.Combine(ServerDir, "CoreKeeperServer.exe");
         public static bool ServerInstalled => File.Exists(ServerExe);
 
+        private static readonly System.Reflection.FieldInfo MainFsField = AccessTools.Field(typeof(Manager), "_filesystemInterface");
+
+        /// <summary>The game's main save filesystem (created before mods load; P2 redirects it to J2/).</summary>
+        public static StandaloneFilesystem MainFilesystem => MainFsField?.GetValue(null) as StandaloneFilesystem;
+
         private static Process _j2Process, _serverProcess;
         private static bool _started, _j2Pending, _stopping;
         private static float _j2PendingSince = -1f, _oldJ2StopAt = -1f;
@@ -203,8 +208,6 @@ namespace CouchCoop
                 catch { return false; }
             }
         }
-
-        public static bool ServerWorldExists => SafeFile.Exists(ServerWorld.CurrentWorldFile);
 
         public static void CopyConnectionToClipboard()
         {
@@ -412,7 +415,7 @@ namespace CouchCoop
         private static void RedirectSavesForJ2()
         {
             var field = AccessTools.Field(typeof(StandaloneFilesystem), "_persistentPath");
-            var mainFs = AccessTools.Field(typeof(Manager), "_filesystemInterface")?.GetValue(null) as StandaloneFilesystem;
+            var mainFs = MainFilesystem;
             if (field == null || mainFs == null)
             {
                 Debug.LogError($"{CouchCoopMod.Tag} P2: cannot separate saves (field not found), quitting to be safe");
