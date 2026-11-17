@@ -36,6 +36,23 @@ namespace CouchCoop.UI
         {
             _checkAuto = true;
             if (_open) SyncDraft();
+            CheckMyPad();
+        }
+
+        private bool? _hadMyPad;
+
+        /// <summary>
+        /// In split screen, tells this window's player when their controller drops out (Bluetooth, battery) and
+        /// when it is back. The same controller is re-assigned by itself when it reconnects.
+        /// </summary>
+        private void CheckMyPad()
+        {
+            bool has = PadAssignment.HasConnectedPadForThisWindow();
+            bool? had = _hadMyPad;
+            _hadMyPad = has;
+            if (!Duo.Active || had == null || had == has) return;
+            if (!has) Toast(L10n.T(Duo.IsJ2 ? "pads.lostP2" : "pads.lost"), 8f);
+            else Toast(L10n.T("pads.back"));
         }
 
         // ================================================================ loop
@@ -62,10 +79,14 @@ namespace CouchCoop.UI
                 _startupDone = true;
                 Duo.OnGameReady();
                 PadAssignment.Apply("startup");
+                _hadMyPad = PadAssignment.HasConnectedPadForThisWindow();
             }
 
             if (Duo.IsJ2 && Time.frameCount % 120 == 0 && PadStore.Reload())
+            {
                 PadAssignment.Apply("P1 changed the controllers");
+                CheckMyPad();
+            }
 
             if (_open) { HandleOpen(); return; }
 

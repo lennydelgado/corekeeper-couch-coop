@@ -23,6 +23,9 @@ namespace CouchCoop
             ["pads.taken1"] = ("P1 already has a controller", "J1 a déjà une manette"),
             ["pads.taken2"] = ("P2 already has a controller", "J2 a déjà une manette"),
             ["pads.saved"] = ("Controllers saved", "Manettes enregistrées"),
+            ["pads.lost"] = ("Controller disconnected: plug it back in, or F8 to pick another", "Manette déconnectée : rebranche-la, ou F8 pour en choisir une autre"),
+            ["pads.lostP2"] = ("Controller disconnected: plug it back in (P1 can pick another)", "Manette déconnectée : rebranche-la (J1 peut en choisir une autre)"),
+            ["pads.back"] = ("Controller reconnected", "Manette reconnectée"),
             ["pads.p2note"] = ("The P2 controller only plays in the P2 window", "La manette J2 ne joue que dans la fenêtre J2"),
 
             ["duo.start"] = ("Start split screen", "Lancer l'écran partagé"),

@@ -85,6 +85,8 @@ Modifiables dans l'onglet *Options* du hub. Ils sont stockés via l'API officiel
   - J2 : `…/Core Keeper/J2/Player.log`
   - Serveur : `…/CouchCoop/Server/CoreKeeperServerLog.txt`
   - Les lignes des mods commencent par `[CouchCoop]` / `[NotProtonFixes]`.
+- **Sauvegardes du monde** : à chaque lancement de l'écran partagé, le monde du serveur est copié dans `…/CouchCoop/Backups/1` à `5` (la plus ancienne est remplacée). Pour en restaurer une, ferme le jeu et recopie `world.gzip` (et `world.worldinfo`) aux emplacements indiqués dans son `about.txt`.
+- **J1 a planté** : la fenêtre J2 s'en rend compte, demande au serveur de sauvegarder et de s'arrêter, puis se ferme. Si un serveur tourne encore la fois suivante, l'écran partagé le réutilise.
 - **Fenêtre J2 bloquée sur un écran noir** : ferme-la, puis utilise *Relancer la fenêtre J2* dans le hub (ou Maj+F9).
 - **macOS : « mod load failed »** : relance l'installateur. Il réapplique le contournement NotProton.
 - **Problèmes d'affichage** (bandes noires, texte flou) : appuie sur **F11** dans la fenêtre concernée, puis partage `Player.log`. Il liste chaque caméra et sa taille de rendu.

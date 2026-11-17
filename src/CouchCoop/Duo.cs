@@ -23,6 +23,8 @@ namespace CouchCoop
     {
         public const string P2Arg = "-couchcoop-p2";
         private const string LegacyP2Arg = "-macpad-j2";
+        /// <summary>P1's process id, given to P2 so it can close itself (and the server) if P1 is gone.</summary>
+        private const string P1PidArg = "-couchcoop-p1pid";
         public const int Port = 27015;
         public const string Ip = "127.0.0.1";
 
@@ -34,7 +36,7 @@ namespace CouchCoop
         public static bool Active => IsJ2 || _started;
 
         private static string Pdp => Application.persistentDataPath.Replace('\\', '/').TrimEnd('/');
-        private static string ShareDir => Pdp + "/CouchCoop";
+        public static string ShareDir => Pdp + "/CouchCoop";
         private static string HandoffPath => ShareDir + "/connection.json";
         /// <summary>Local server world. A world from the development builds (.../DuoServer) is reused as is.</summary>
         public static string ServerDataPath =>
@@ -54,6 +56,8 @@ namespace CouchCoop
             public string ip = Ip;
             public int port = Port;
             public string password = "";
+            /// <summary>Local server process id (P2 stops the server if P1 crashed).</summary>
+            public int serverPid;
             /// <summary>Format the game's IP field splits by itself: IP;PORT;;PASSWORD</summary>
             public string Packed => $"{ip};{port};;{password}";
         }
@@ -105,10 +109,16 @@ namespace CouchCoop
 
             SeedServerWorld();
             ServerAdmin.Ensure(ServerDataPath);
-            if (!IsRunning(_serverProcess)) StartServer();
+            if (!IsRunning(_serverProcess)) AdoptOrphanServer();
+            if (!IsRunning(_serverProcess))
+            {
+                WorldBackup.Save("local server world, before a split-screen session",
+                    Path.Combine(ServerDataPath, "worlds", "0.world.gzip"), Path.Combine(ServerDataPath, "worldinfos", "0.worldinfo"));
+                StartServer();
+            }
             if (restartP2 || !IsRunning(_j2Process)) _j2Pending = true; // P2 opens once the server is ready
 
-            ConnectionInfo = new Connection { password = Settings.ServerPassword };
+            ConnectionInfo = new Connection { password = Settings.ServerPassword, serverPid = SafePid(_serverProcess) };
             try { SafeFile.WriteAllText(HandoffPath, JsonUtility.ToJson(ConnectionInfo)); }
             catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} connection info not shared: {e.Message}"); }
 
@@ -131,6 +141,7 @@ namespace CouchCoop
                         try { ConnectionInfo = JsonUtility.FromJson<Connection>(raw); } catch { }
                     }
                 }
+                WatchP1();
                 return;
             }
             if (!_j2Pending) return;
@@ -245,7 +256,7 @@ namespace CouchCoop
                 string log = Path.Combine(dir, "Player.log").Replace('/', '\\');
                 var passthrough = Environment.GetCommandLineArgs().Skip(1)
                     .Where(a => a.StartsWith("-force-", StringComparison.OrdinalIgnoreCase));
-                string args = $"{P2Arg} -popupwindow -screen-fullscreen 0 -logFile \"{log}\" " + string.Join(" ", passthrough);
+                string args = $"{P2Arg} {P1PidArg} {SafePid(Process.GetCurrentProcess())} -popupwindow -screen-fullscreen 0 -logFile \"{log}\" " + string.Join(" ", passthrough);
                 _j2Process = Process.Start(new ProcessStartInfo(exe, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
                 Debug.Log($"{CouchCoopMod.Tag} P2 window started");
             }
@@ -254,6 +265,72 @@ namespace CouchCoop
                 Debug.LogError($"{CouchCoopMod.Tag} could not start the P2 window");
                 Debug.LogException(e);
             }
+        }
+
+        private static int SafePid(Process p)
+        {
+            try { return p?.Id ?? 0; } catch { return 0; }
+        }
+
+        /// <summary>
+        /// A server left running by a previous session (P1 crashed) still holds the port and the world:
+        /// reuse it instead of starting a second one.
+        /// </summary>
+        private static void AdoptOrphanServer()
+        {
+            try
+            {
+                foreach (var p in Process.GetProcessesByName("CoreKeeperServer"))
+                {
+                    if (!IsRunning(p)) continue;
+                    _serverProcess = p;
+                    _serverStartedUtc = DateTime.MinValue; // its GameInfo.txt is already there
+                    Debug.Log($"{CouchCoopMod.Tag} reusing the local server left running (pid {p.Id})");
+                    return;
+                }
+            }
+            catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} server lookup: {e.Message}"); }
+        }
+
+        // ---------------- P2: close with P1 ----------------
+
+        private static int _p1Pid = -1;
+        private static float _nextWatch;
+        private static bool _closing;
+
+        /// <summary>
+        /// P2 only lives alongside P1: when P1 is gone (quit or crash), P2 asks the server to stop (it saves
+        /// first) and closes. A normal P1 exit already stops the server; this also covers a crash.
+        /// </summary>
+        private static void WatchP1()
+        {
+            if (_closing || Time.unscaledTime < _nextWatch) return;
+            _nextWatch = Time.unscaledTime + 2f;
+            if (_p1Pid < 0) _p1Pid = ReadP1Pid();
+            if (_p1Pid == 0) return; // started by hand or by an old version: nothing to watch
+            bool alive;
+            try { alive = !Process.GetProcessById(_p1Pid).HasExited; }
+            catch (ArgumentException) { alive = false; }
+            catch { alive = true; }
+            if (alive) return;
+
+            _closing = true;
+            Debug.Log($"{CouchCoopMod.Tag} P1 is gone: stopping the local server and closing P2");
+            int server = ConnectionInfo?.serverPid ?? 0;
+            if (server > 0)
+            {
+                try { Process.Start(new ProcessStartInfo("taskkill.exe", $"/pid {server}") { UseShellExecute = false }); }
+                catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} server stop: {e.Message}"); }
+            }
+            Application.Quit();
+        }
+
+        private static int ReadP1Pid()
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i].Equals(P1PidArg, StringComparison.OrdinalIgnoreCase) && int.TryParse(args[i + 1], out int pid)) return pid;
+            return 0;
         }
 
         private static bool IsRunning(Process p)

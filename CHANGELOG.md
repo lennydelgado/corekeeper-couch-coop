@@ -4,6 +4,9 @@
 
 ### CouchCoop
 - macOS: the top half no longer overlaps the bottom one. Halves are placed in the screen's work area, below the menu bar (hide the menu bar automatically to use the whole screen).
+- The server world is backed up each time split screen starts (5 rotating copies in `CouchCoop/Backups`).
+- If P1 crashes, P2 asks the server to save and stop, then closes. A server left running is reused next time instead of starting a second one.
+- Each player is told when their controller disconnects and reconnects.
 - Zoomed-out split screen: lights no longer stay black for a moment. The game updates a few light shadows per frame, sized for its normal view; the budget now grows with the visible area.
 
 ## 1.1.0
