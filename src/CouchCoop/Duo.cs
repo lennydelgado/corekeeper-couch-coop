@@ -129,8 +129,8 @@ namespace CouchCoop
             if (!IsRunning(_serverProcess)) AdoptOrphanServer();
             if (!IsRunning(_serverProcess))
             {
-                WorldBackup.Save(WorldBackup.Session, "local server world, before a split-screen session",
-                    Path.Combine(ServerDataPath, "worlds", "0.world.gzip"), Path.Combine(ServerDataPath, "worldinfos", "0.worldinfo"));
+                WorldBackup.Save(WorldBackup.Session, $"local server world {ServerWorld.Current} ({ServerWorld.CurrentName}), before a split-screen session",
+                    ServerWorld.CurrentWorldFile, ServerWorld.CurrentInfoFile);
                 StartServer();
             }
             if (restartP2 && IsRunning(_j2Process))
@@ -204,7 +204,7 @@ namespace CouchCoop
             }
         }
 
-        public static bool ServerWorldExists => SafeFile.Exists(Path.Combine(ServerDataPath, "worlds", "0.world.gzip"));
+        public static bool ServerWorldExists => SafeFile.Exists(ServerWorld.CurrentWorldFile);
 
         public static void CopyConnectionToClipboard()
         {
@@ -213,23 +213,18 @@ namespace CouchCoop
             try { GUIUtility.systemCopyBuffer = c.Packed; } catch { }
         }
 
-        /// <summary>First start: copies the chosen P1 world into the server (index 0).</summary>
+        /// <summary>
+        /// Very first start (the server has no world at all): copies the chosen solo world into the server.
+        /// Without a solo world, the server generates a new one.
+        /// </summary>
         private static void SeedServerWorld()
         {
             try
             {
-                if (ServerWorldExists) return;
-                var mainFs = AccessTools.Field(typeof(Manager), "_filesystemInterface")?.GetValue(null) as StandaloneFilesystem;
-                if (mainFs == null) return;
-                int src = Settings.SourceWorld;
-                foreach (var (dir, ext) in new[] { ("worlds", ".world.gzip"), ("worldinfos", ".worldinfo"), ("worldgenparams", ".json") })
-                {
-                    string from = mainFs.Rel2Abs($"{dir}/{src}{ext}");
-                    if (!SafeFile.Exists(from)) continue;
-                    Directory.CreateDirectory(Path.Combine(ServerDataPath, dir));
-                    File.Copy(from, Path.Combine(ServerDataPath, dir, "0" + ext), true);
-                }
-                Debug.Log($"{CouchCoopMod.Tag} P1 world {src} copied into the local server");
+                for (int i = 0; i < ServerWorld.MaxSlots; i++)
+                    if (ServerWorld.TryGetServer(i, out _)) return;
+                if (!ServerWorld.TryGetSolo(Settings.SourceWorld, out _)) return;
+                Debug.Log($"{CouchCoopMod.Tag} first start: {ServerWorld.AddFromSolo(Settings.SourceWorld)}");
             }
             catch (Exception e) { Debug.LogException(e); }
         }
@@ -245,12 +240,14 @@ namespace CouchCoop
                     "-batchmode",
                     $"-logfile \"{log}\"",
                     $"-datapath \"{dp.Replace('/', '\\')}\"",
-                    "-world 0",
-                    $"-worldname \"{ServerWorld.GeneratedName}\"",
+                    $"-world {ServerWorld.Current}",
+                    $"-worldname \"{ServerWorld.CurrentName.Replace("\"", "'")}\"",
                     $"-port {Port}",
                     $"-ip {Ip}",
                     $"-password \"{Settings.ServerPassword}\"",
                     $"-maxplayers {Guardrails.MaxPlayers}");
+                string mode = ServerWorld.PendingMode(ServerWorld.Current);
+                if (mode != null) args += $" -worldmode {mode}"; // new world: the server generates it (random seed)
                 var psi = new ProcessStartInfo(ServerExe, args) { UseShellExecute = false, WorkingDirectory = ServerDir };
                 // The server must not pose as the game (environment inherited from Steam).
                 foreach (var v in new[] { "SteamAppId", "SteamGameId", "SteamOverlayGameId" }) psi.EnvironmentVariables.Remove(v);

@@ -72,11 +72,14 @@ Comme sous Windows : copie `CouchCoop` dans `CoreKeeper_Data/StreamingAssets/Mod
 - Ensuite, le monde coop vit dans `…/Pugstorm/Core Keeper/CouchCoop/Server/` et reste séparé de ta sauvegarde solo.
 
 ### Mondes
-L'écran partagé joue sur la copie d'un de tes mondes solo, propre au serveur local (celui de `Duo-sourceWorld`, l'emplacement 0 par défaut). Sans monde solo, le serveur en génère un nouveau, nommé *Couch Co-op*. L'onglet *Écran partagé* du hub permet de faire passer les mondes dans les deux sens, une fois l'écran partagé arrêté (*Arrêter l'écran partagé* : le serveur sauvegarde puis se ferme) :
-- **Ramener "…" en solo** : recopie le monde du serveur sur le monde solo d'origine, ou dans un emplacement libre si c'est un nouveau monde (par exemple le monde *Couch Co-op* généré par le serveur). Votre progression à deux apparaît alors dans ta liste de mondes solo.
-- **Charger dans le serveur** : choisis un monde solo (gauche / droite), puis confirme. Il remplace le monde du serveur.
+L'écran partagé joue sur les mondes propres au serveur local, séparés de tes mondes solo. La première fois, le serveur reçoit une copie d'un de tes mondes solo (`Duo-sourceWorld`, l'emplacement 0 par défaut), ou en génère un nouveau si tu n'en as pas. L'onglet *Mondes* du hub permet de les gérer (arrête d'abord l'écran partagé, sauf pour renommer) :
+- **Monde du serveur** : celui que l'écran partagé charge (gauche / droite). Le serveur peut en garder 30.
+- **Renommer** : tape le nouveau nom au clavier. Les joueurs le voient en rejoignant, et le monde solo le reprend quand tu le ramènes.
+- **Nouveau monde** : choisis le mode (Normal, Difficile, Détente, Créatif), puis confirme. Le serveur le génère avec une graine aléatoire au prochain lancement. Pour tous les réglages de génération (graine, biomes), crée plutôt le monde dans le jeu, puis utilise *Ajouter depuis le solo*.
+- **Ramener "…" en solo** : recopie le monde du serveur sur le monde solo d'origine, ou dans un emplacement libre. Votre progression à deux apparaît alors dans ta liste de mondes solo.
+- **Ajouter depuis le solo** : copie un monde solo sur le serveur, comme nouveau monde. Rien n'est remplacé sur le serveur.
 
-Les deux demandent d'appuyer deux fois sur A et sauvegardent d'abord le monde remplacé (`…/CouchCoop/Backups`).
+Les actions demandent d'appuyer deux fois sur A. Ramener un monde sauvegarde d'abord le monde solo qu'il remplace (`…/CouchCoop/Backups`).
 
 ## Réglages
 Modifiables dans l'onglet *Options* du hub. Ils sont stockés via l'API officielle de configuration des mods, dans `…/Pugstorm/Core Keeper/Steam/<id>/mods/<Mod>/`. Le détail de chaque réglage est dans le [README anglais](README.md#settings).

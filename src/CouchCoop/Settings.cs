@@ -46,7 +46,7 @@ namespace CouchCoop
 
         private static Entry<string> _layout, _password;
         private static Entry<bool> _fill, _muteMusic, _autoFillJoin, _autoOpen;
-        private static Entry<int> _sourceWorld, _scale, _scaleP2, _fpsLimit;
+        private static Entry<int> _sourceWorld, _serverWorld, _scale, _scaleP2, _fpsLimit;
 
         public static void Load()
         {
@@ -54,7 +54,8 @@ namespace CouchCoop
             _fill = new Entry<bool>("Duo", "fillWindow", "Widen the render to fill each half of the screen (no black bars)", true);
             _muteMusic = new Entry<bool>("Duo", "muteJ2Music", "Mute the music of the P2 window (sound effects stay on)", true);
             _autoFillJoin = new Entry<bool>("Duo", "autoFillJoin", "Pre-fill Join With IP with the local server address", true);
-            _sourceWorld = new Entry<int>("Duo", "sourceWorld", "World (0-29) copied into the local server the first time split screen starts", 0);
+            _sourceWorld = new Entry<int>("Duo", "sourceWorld", "Solo world (0-29) copied into the local server the first time split screen starts, and the one offered by Add from solo", 0);
+            _serverWorld = new Entry<int>("Duo", "serverWorld", "World of the local server (0-29) that split screen loads", 0);
             _password = new Entry<string>("Duo", "serverPassword", "Local server password (generated automatically)", "");
             _scale = new Entry<int>("Display", "scale", "P1 world zoom in split screen: 0 = auto, 1-4 = fixed (bigger = closer view). The game's UI keeps its normal size.", 0);
             _scaleP2 = new Entry<int>("Display", "scaleP2", "P2 world zoom in split screen: 0 = auto, 1-4 = fixed (set from the P2 window)", 0);
@@ -70,6 +71,7 @@ namespace CouchCoop
         public static bool MuteJ2Music { get => _muteMusic?.Value ?? true; set => _muteMusic.Value = value; }
         public static bool AutoFillJoin { get => _autoFillJoin?.Value ?? true; set => _autoFillJoin.Value = value; }
         public static bool AutoOpenSelector { get => _autoOpen?.Value ?? true; set => _autoOpen.Value = value; }
+        public static int ServerWorld { get => Mathf.Clamp(_serverWorld?.Value ?? 0, 0, 29); set => _serverWorld.Value = Mathf.Clamp(value, 0, 29); }
         public static int SourceWorld { get => Mathf.Clamp(_sourceWorld?.Value ?? 0, 0, 29); set => _sourceWorld.Value = Mathf.Clamp(value, 0, 29); }
         /// <summary>0 = auto, 1..MaxScale = fixed integer pixel scale.</summary>
         public static int Scale { get => Mathf.Clamp(_scale?.Value ?? 0, 0, MaxScale); set => _scale.Value = Mathf.Clamp(value, 0, MaxScale); }
