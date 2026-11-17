@@ -9,7 +9,8 @@ namespace CouchCoop
     /// Limits that keep split screen a local, same-couch feature (agreed with Pugstorm):
     ///  - the local server accepts 2 players and only listens on 127.0.0.1 (see Duo.StartServer);
     ///  - split screen needs a Steam copy of the game on this account;
-    ///  - P2 can only be started by P1, once per launch (one-time token), and closes when P1 is gone (Duo);
+    ///  - P2 can only be started by P1, once per launch (one-time token), one window at a time (a restart closes
+    ///    the old one first), and closes when P1 is gone (Duo);
     ///  - P2 can only join the local server: no solo game, no hosting, no other server.
     /// </summary>
     internal static class Guardrails

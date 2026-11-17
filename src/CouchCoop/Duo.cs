@@ -49,7 +49,7 @@ namespace CouchCoop
 
         private static Process _j2Process, _serverProcess;
         private static bool _started, _j2Pending, _stopping;
-        private static float _j2PendingSince = -1f;
+        private static float _j2PendingSince = -1f, _oldJ2StopAt = -1f;
         private static DateTime _serverStartedUtc;
 
         [Serializable]
@@ -133,6 +133,12 @@ namespace CouchCoop
                     Path.Combine(ServerDataPath, "worlds", "0.world.gzip"), Path.Combine(ServerDataPath, "worldinfos", "0.worldinfo"));
                 StartServer();
             }
+            if (restartP2 && IsRunning(_j2Process))
+            {
+                // Never two P2 windows: the old one closes first, the new one opens once it is gone (Tick).
+                StopGracefully(SafePid(_j2Process), "P2 window");
+                _oldJ2StopAt = Time.unscaledTime;
+            }
             if (restartP2 || !IsRunning(_j2Process)) _j2Pending = true; // P2 opens once the server is ready
 
             ConnectionInfo = new Connection { password = Settings.ServerPassword, serverPid = SafePid(_serverProcess) };
@@ -162,6 +168,16 @@ namespace CouchCoop
                 return;
             }
             if (!_j2Pending) return;
+            if (IsRunning(_j2Process))
+            {
+                // Restart: wait for the old P2 window to close. A window that hangs is forced after 10 s.
+                if (_oldJ2StopAt >= 0f && Time.unscaledTime - _oldJ2StopAt > 10f)
+                {
+                    StopGracefully(SafePid(_j2Process), "P2 window (not answering)", force: true);
+                    _oldJ2StopAt = -1f;
+                }
+                return;
+            }
             if (_j2PendingSince < 0f) _j2PendingSince = Time.unscaledTime;
             bool timeout = Time.unscaledTime - _j2PendingSince > 180f;
             if (!ServerReady && !timeout) return;
@@ -293,6 +309,8 @@ namespace CouchCoop
 
         private static void LaunchJ2Window()
         {
+            if (IsRunning(_j2Process)) return; // one P2 window at a time
+            _oldJ2StopAt = -1f;
             try
             {
                 string exe = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "CoreKeeper.exe"));
