@@ -42,6 +42,8 @@ namespace CouchCoop
             ["duo.stop"] = ("Stop split screen (saves the world)", "Arrêter l'écran partagé (sauvegarde)"),
             ["duo.stopped"] = ("Split screen stopped. The server saves, then closes", "Écran partagé arrêté. Le serveur sauvegarde puis se ferme"),
             ["duo.stillStopping"] = ("The server is still saving and closing, try again in a few seconds", "Le serveur sauvegarde et se ferme encore, réessaie dans quelques secondes"),
+            ["duo.p2Restarted"] = ("The P2 window closed on its own: starting it again", "La fenêtre J2 s'est fermée toute seule : je la relance"),
+            ["duo.p2GaveUp"] = ("The P2 window keeps closing. Restart it from the hub (Split screen tab)", "La fenêtre J2 se ferme sans arrêt. Relance-la depuis le hub (onglet Écran partagé)"),
             ["duo.notRunning"] = ("Split screen is not running", "L'écran partagé n'est pas lancé"),
             ["confirm.again"] = ("Press A again to confirm", "Appuie encore sur A pour confirmer"),
             ["confirm.press"] = ("A: confirm", "A : confirmer"),

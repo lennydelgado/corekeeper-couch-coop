@@ -205,7 +205,7 @@ namespace CouchCoop
                 if (Time.unscaledTime - _checkedAt > 1f)
                 {
                     _checkedAt = Time.unscaledTime;
-                    _leftoverRunning = Duo.LeftoverServer() != null;
+                    _leftoverRunning = Duo.LeftoverServerRunning();
                 }
                 return !_leftoverRunning;
             }

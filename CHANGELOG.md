@@ -10,6 +10,7 @@
 - *Split screen* tab: stop split screen (the server saves and closes).
 - New *Worlds* tab: several worlds on the local server, pick the one to play, rename it (keyboard), create a new one (mode, random seed), add a solo world, bring a server world back to the solo worlds as `Coop: <name>` (the replaced solo world is backed up first).
 - Split screen limits: Steam copy of the game required, local server capped at 2 players, P2 window only started by P1 (one-time token), P2 can only join the local server.
+- If the P2 window closes on its own during split screen (for example Mono's "Fatal error in GC" under Wine), P1 starts it again, at most twice in 5 minutes.
 - Each player is told when their controller disconnects and reconnects.
 - Zoomed-out split screen: lights no longer stay black for a moment. The game updates a few light shadows per frame, sized for its normal view; the budget now grows with the visible area.
 

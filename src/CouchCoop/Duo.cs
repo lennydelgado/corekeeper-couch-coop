@@ -172,6 +172,7 @@ namespace CouchCoop
                 WatchP1();
                 return;
             }
+            WatchP2();
             if (!_j2Pending) return;
             if (IsRunning(_j2Process))
             {
@@ -193,6 +194,37 @@ namespace CouchCoop
         }
 
         public static bool J2Pending => _j2Pending;
+
+        private static readonly System.Collections.Generic.List<float> _p2Relaunches = new System.Collections.Generic.List<float>();
+        private const int MaxRelaunches = 2;
+        private const float RelaunchWindow = 300f;
+
+        /// <summary>
+        /// P1: the P2 window closed on its own during split screen (a crash, such as Mono's "Fatal error in GC" under
+        /// Wine, once its dialog is dismissed): it is started again, at most twice in 5 minutes.
+        /// Stop and Restart P2 are not crashes: Stop clears _started, Restart sets _j2Pending first.
+        /// </summary>
+        private static void WatchP2()
+        {
+            if (!_started || _j2Pending || _j2Process == null || IsRunning(_j2Process)) return;
+            string code;
+            try { code = _j2Process.ExitCode.ToString(); } catch { code = "?"; }
+            try { _j2Process.Dispose(); } catch { }
+            _j2Process = null;
+
+            float now = Time.unscaledTime;
+            _p2Relaunches.RemoveAll(t => now - t > RelaunchWindow);
+            if (_p2Relaunches.Count >= MaxRelaunches)
+            {
+                Debug.LogWarning($"{CouchCoopMod.Tag} P2 window closed again (exit code {code}): not restarted, {MaxRelaunches} restarts in 5 min");
+                UI.Hub.Notify(L10n.T("duo.p2GaveUp"), 10f);
+                return;
+            }
+            _p2Relaunches.Add(now);
+            Debug.LogWarning($"{CouchCoopMod.Tag} P2 window closed on its own (exit code {code}): restarting it");
+            UI.Hub.Notify(L10n.T("duo.p2Restarted"), 8f);
+            _j2Pending = true;
+        }
         public static bool ServerRunning => IsRunning(_serverProcess);
 
         /// <summary>True once the server has written its GameInfo.txt since it started.</summary>
@@ -341,13 +373,22 @@ namespace CouchCoop
         /// </summary>
         public static Process LeftoverServer()
         {
+            Process p = null;
             try
             {
                 if (!int.TryParse(SafeFile.ReadAllTextOrNull(ServerPidPath)?.Trim(), out int pid) || pid <= 0) return null;
-                var p = Process.GetProcessById(pid);
-                return IsRunning(p) && p.ProcessName.StartsWith("CoreKeeperServer", StringComparison.OrdinalIgnoreCase) ? p : null;
+                p = Process.GetProcessById(pid);
+                if (IsRunning(p) && p.ProcessName.StartsWith("CoreKeeperServer", StringComparison.OrdinalIgnoreCase)) return p;
             }
-            catch { return null; } // not running anymore
+            catch { /* not running anymore */ }
+            p?.Dispose();
+            return null;
+        }
+
+        /// <summary>Same check as <see cref="LeftoverServer"/>, without keeping a process handle.</summary>
+        public static bool LeftoverServerRunning()
+        {
+            using (var p = LeftoverServer()) return p != null;
         }
 
         /// <summary>
@@ -366,6 +407,7 @@ namespace CouchCoop
         // ---------------- P2: close with P1 ----------------
 
         private static int _p1Pid = -1;
+        private static Process _p1; // opened once: polling GetProcessById every 2 s leaked a handle each time
         private static float _nextWatch;
         private static bool _closing;
 
@@ -380,8 +422,12 @@ namespace CouchCoop
             if (_p1Pid < 0) _p1Pid = ReadP1Pid();
             if (_p1Pid == 0) return; // started by hand or by an old version: nothing to watch
             bool alive;
-            try { alive = !Process.GetProcessById(_p1Pid).HasExited; }
-            catch (ArgumentException) { alive = false; }
+            try
+            {
+                if (_p1 == null) _p1 = Process.GetProcessById(_p1Pid);
+                alive = !_p1.HasExited;
+            }
+            catch (ArgumentException) { alive = false; } // no process with this id anymore
             catch { alive = true; }
             if (alive) return;
 
