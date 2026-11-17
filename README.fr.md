@@ -71,6 +71,13 @@ Comme sous Windows : copie `CouchCoop` dans `CoreKeeper_Data/StreamingAssets/Mod
 - La première fois, le monde choisi dans *Options › Monde copié dans le serveur* (`0` par défaut) est **copié** dans le serveur local.
 - Ensuite, le monde coop vit dans `…/Pugstorm/Core Keeper/CouchCoop/Server/` et reste séparé de ta sauvegarde solo.
 
+### Mondes
+L'écran partagé joue sur la copie d'un de tes mondes solo, propre au serveur local. L'onglet *Écran partagé* du hub permet de faire passer les mondes dans les deux sens, une fois l'écran partagé arrêté (*Arrêter l'écran partagé* : le serveur sauvegarde puis se ferme) :
+- **Ramener "…" en solo** : recopie le monde du serveur sur le monde solo d'origine, ou dans un emplacement libre si c'est un nouveau monde. Votre progression à deux apparaît alors dans ta liste de mondes solo.
+- **Charger dans le serveur** : choisis un monde solo (gauche / droite), puis confirme. Il remplace le monde du serveur.
+
+Les deux demandent d'appuyer deux fois sur A et sauvegardent d'abord le monde remplacé (`…/CouchCoop/Backups`).
+
 ## Réglages
 Modifiables dans l'onglet *Options* du hub. Ils sont stockés via l'API officielle de configuration des mods, dans `…/Pugstorm/Core Keeper/Steam/<id>/mods/<Mod>/`. Le détail de chaque réglage est dans le [README anglais](README.md#settings).
 
