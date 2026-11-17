@@ -72,11 +72,14 @@ Same as Windows: copy `CouchCoop` into `CoreKeeper_Data/StreamingAssets/Mods/`.
 - From then on, the co-op world lives in `…/Pugstorm/Core Keeper/CouchCoop/Server/` and is separate from your solo save.
 
 ### Worlds
-Split screen plays on the local server's own copy of one of your solo worlds (the one in `Duo-sourceWorld`, slot 0 by default). Without a solo world, the server generates a new one named *Couch Co-op*. The hub's *Split screen* tab can move worlds both ways, once split screen is stopped (*Stop split screen*: the server saves and closes):
-- **Bring "…" back to solo**: copies the server world over the solo world it came from, or into a free slot if it is a new one (for example the *Couch Co-op* world the server generated). Your progress together then shows up in your solo world list.
-- **Load into the server**: pick a solo world (left / right), then confirm. It replaces the server world.
+Split screen plays on the local server's own worlds, kept apart from your solo worlds. The first time, the server gets a copy of one of your solo worlds (`Duo-sourceWorld`, slot 0 by default), or generates a new one if you have none. The hub's *Worlds* tab manages them (stop split screen first for everything but renaming):
+- **Server world**: the one split screen loads (left / right). The server can keep up to 30.
+- **Rename**: type the new name on the keyboard. Players see it when they join, and the solo world gets it when you bring it back.
+- **New world**: pick the mode (Normal, Hard, Casual, Creative), then confirm. The server generates it with a random seed at the next start. For full generation settings (seed, biomes), create the world in the game instead, then use *Add from solo*.
+- **Bring "…" back to solo**: copies the server world over the solo world it came from, or into a free slot. Your progress together then shows up in your solo world list, named `Coop: <name>` so you can tell it is a Couch Co-op world (the prefix is removed again when you add it back to the server).
+- **Add from solo**: copies a solo world to the server as a new world. Nothing on the server is replaced.
 
-Both ask for A twice and back up the world they replace first (`…/CouchCoop/Backups`).
+Actions ask for A twice. Bringing a world back saves the solo world it replaces first (`…/CouchCoop/Backups`).
 
 ## Settings
 Edit them in the hub's *Options* tab. They are stored through the game's official mod config API in `…/Pugstorm/Core Keeper/Steam/<id>/mods/<Mod>/`.
@@ -87,7 +90,8 @@ Edit them in the hub's *Options* tab. They are stored through the game's officia
 | `Duo-fillWindow` | `true` | Widen the render instead of black bars |
 | `Duo-muteJ2Music` | `true` | Mute P2's music only |
 | `Duo-autoFillJoin` | `true` | Pre-fill *Join With IP* |
-| `Duo-sourceWorld` | `0` | Solo world copied into the server the first time, and the one *Load into the server* offers |
+| `Duo-sourceWorld` | `0` | Solo world copied into the server the first time, and the one *Add from solo* offers |
+| `Duo-serverWorld` | `0` | Server world split screen loads (set in the *Worlds* tab) |
 | `Duo-serverPassword` | random | Local server password |
 | `Display-scale` | `0` | P1 world zoom: `0` = auto, `1`-`4` = fixed |
 | `Display-scaleP2` | `0` | P2 world zoom, set from the P2 window |

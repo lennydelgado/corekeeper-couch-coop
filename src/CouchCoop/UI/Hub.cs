@@ -14,7 +14,7 @@ namespace CouchCoop.UI
     /// </summary>
     internal class Hub : MonoBehaviour
     {
-        private enum Tab { Pads = 0, Duo = 1, Options = 2 }
+        private enum Tab { Pads = 0, Duo = 1, Worlds = 2, Options = 3 }
 
         private const float ComboHoldSeconds = 1f;
 
@@ -168,7 +168,7 @@ namespace CouchCoop.UI
             return Duo.IsJ2 ? slot == 2 : slot != 2;
         }
 
-        private Tab[] Tabs => Duo.IsJ2 ? new[] { Tab.Options } : new[] { Tab.Pads, Tab.Duo, Tab.Options };
+        private Tab[] Tabs => Duo.IsJ2 ? new[] { Tab.Options } : new[] { Tab.Pads, Tab.Duo, Tab.Worlds, Tab.Options };
 
         // ================================================================ open / close
 
@@ -227,6 +227,7 @@ namespace CouchCoop.UI
         {
             if (Time.unscaledTime - _openedAt < 0.25f) return; // the opening combo must not validate right away
 
+            if (_editing) { HandleRename(); return; }
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.F8)) { Cancel(); return; }
 
             int tabDelta = 0, dy = 0, dx = 0;
@@ -282,9 +283,10 @@ namespace CouchCoop.UI
             if (_tab == Tab.Pads) { if (accept) CloseAndSave(); return; }
             if (back) { CloseAndSave(); return; }
 
-            int count = _tab == Tab.Duo ? DuoRows().Count : OptionRows().Count;
+            int count = ListRows(_tab).Count;
             if (dy != 0) { _cursor = (_cursor - dy + count) % count; _confirmRow = -1; } // up = previous item
             if (_tab == Tab.Duo && (accept || dx != 0)) RunDuoAction(_cursor, accept, dx);
+            if (_tab == Tab.Worlds && (accept || dx != 0)) RunWorldAction(_cursor, accept, dx);
             if (_tab == Tab.Options && (accept || dx != 0)) OptionRows()[_cursor].Change?.Invoke(dx == 0 ? 1 : dx);
         }
 
@@ -334,14 +336,62 @@ namespace CouchCoop.UI
                 case 3:
                     if (accept && Duo.Active && Confirm(3)) { CloseAndSave(); Toast(Duo.Stop(), 6f); }
                     break;
-                case 4:
-                    if (accept && ServerWorld.NoServerRunning && Confirm(4)) Toast(ServerWorld.BringBack(), 8f);
+            }
+        }
+
+        // ---------------- Worlds tab ----------------
+
+        private static readonly WorldMode[] Modes = { WorldMode.Normal, WorldMode.Hard, WorldMode.Casual, WorldMode.Creative };
+        private int _newMode;
+        private bool _editing;
+        private string _editText = "";
+
+        private void RunWorldAction(int index, bool accept, int dx)
+        {
+            bool idle = ServerWorld.NoServerRunning;
+            switch (index)
+            {
+                case 0: // server world used by split screen
+                    if (dx != 0 || accept) Toast(ServerWorld.Select(dx == 0 ? 1 : dx), 5f);
                     break;
-                case 5:
-                    if (dx != 0) { Settings.SourceWorld = ServerWorld.NextSolo(Settings.SourceWorld, dx); _confirmRow = -1; }
-                    else if (accept && ServerWorld.NoServerRunning && Confirm(5)) Toast(ServerWorld.LoadIntoServer(Settings.SourceWorld), 8f);
+                case 1: // rename (keyboard)
+                    if (accept) { _editing = true; _editText = ServerWorld.CurrentName; Toast(L10n.T("world.typeName"), 6f); }
+                    break;
+                case 2: // new world, mode picked with left / right
+                    if (dx != 0) { _newMode = (_newMode + dx + Modes.Length) % Modes.Length; _confirmRow = -1; }
+                    else if (accept && idle && Confirm(102)) Toast(ServerWorld.CreateNew(Modes[_newMode]), 8f);
+                    break;
+                case 3: // bring back to solo
+                    if (accept && idle && Confirm(103)) Toast(ServerWorld.BringBack(), 8f);
+                    break;
+                case 4: // add a solo world to the server
+                    if (dx != 0) { Settings.SourceWorld = ServerWorld.NextSolo(Settings.SourceWorld, dx); ServerWorld.Invalidate(); _confirmRow = -1; }
+                    else if (accept && idle && Confirm(104)) Toast(ServerWorld.AddFromSolo(Settings.SourceWorld), 8f);
                     break;
             }
+        }
+
+        /// <summary>Rename row: typed on the keyboard. Enter / A saves, Esc / B cancels.</summary>
+        private void HandleRename()
+        {
+            bool save = false, cancel = Input.GetKeyDown(KeyCode.Escape);
+            foreach (char c in Input.inputString)
+            {
+                if (c == '\b') { if (_editText.Length > 0) _editText = _editText.Substring(0, _editText.Length - 1); }
+                else if (c == '\n' || c == '\r') save = true;
+                else if (!char.IsControl(c) && c != '"' && _editText.Length < ServerWorld.MaxNameLength) _editText += c;
+            }
+            foreach (var j in PadAssignment.Joysticks)
+            {
+                if (!IsMine(j)) continue;
+                var f = PadReader.Read(j);
+                if (f.a) save = true;
+                if (f.b || f.select) cancel = true;
+            }
+            if (cancel) { _editing = false; return; }
+            if (!save) return;
+            _editing = false;
+            Toast(ServerWorld.Rename(_editText), 5f);
         }
 
         private void Toast(string msg, float seconds = 3f)
@@ -425,9 +475,9 @@ namespace CouchCoop.UI
         {
             var pads = PadAssignment.Joysticks;
             float rowH = 18 * u, gap = 2 * u, pad = 10 * u;
-            int rows = _tab == Tab.Pads ? Mathf.Max(1, pads.Count) : (_tab == Tab.Duo ? DuoRows().Count : OptionRows().Count);
+            int rows = _tab == Tab.Pads ? Mathf.Max(1, pads.Count) : ListRows(_tab).Count;
             float bodyH = (_tab == Tab.Pads ? 16 * u : 0) + rows * (rowH + gap) + (_tab == Tab.Pads ? 12 * u : 0);
-            float w = Mathf.Min(Screen.width - 8 * u, 330 * u);
+            float w = Mathf.Min(Screen.width - 8 * u, 360 * u);
             float h = Mathf.Min(Screen.height - 8 * u, pad + 16 * u + 6 * u + 18 * u + 8 * u + bodyH + 16 * u + pad);
             var r = new Rect(Mathf.Round((Screen.width - w) / 2f), Mathf.Round((Screen.height - h) / 2f), w, h);
             GameUI.Draw(GameUI.Frame.Window, r);
@@ -444,6 +494,7 @@ namespace CouchCoop.UI
                 var tr = new Rect(x + i * (tw + gap), y, tw, 18 * u);
                 bool sel = _tab == tabIds[i];
                 string label = tabIds[i] == Tab.Pads ? L10n.T("tab.pads") : tabIds[i] == Tab.Duo ? L10n.T("tab.duo")
+                    : tabIds[i] == Tab.Worlds ? L10n.T("tab.worlds")
                     : Duo.IsJ2 ? L10n.T("tab.optionsP2") : L10n.T("tab.options");
                 GameUI.Draw(sel ? GameUI.Frame.Slot : GameUI.Frame.Box, tr, sel ? (Color?)null : new Color(0.7f, 0.7f, 0.75f));
                 GameUI.Text(tr, label, GameUI.Font.Medium, sel ? GameUI.White : GameUI.Dim, TextAnchor.MiddleCenter);
@@ -452,10 +503,10 @@ namespace CouchCoop.UI
 
             var body = new Rect(x, y, inner, bodyH);
             if (_tab == Tab.Pads) DrawPads(body, u, rowH, gap, pads);
-            else if (_tab == Tab.Duo) DrawList(body, rowH, gap, DuoRows());
-            else DrawList(body, rowH, gap, OptionRows());
+            else DrawList(body, rowH, gap, ListRows(_tab));
 
-            string hint = (Tabs.Length > 1 ? L10n.T("hint.tabs") + "    " : "") + L10n.T(_tab == Tab.Pads ? "hint.pads" : "hint.list");
+            string hint = _editing ? L10n.T("hint.rename")
+                : (Tabs.Length > 1 ? L10n.T("hint.tabs") + "    " : "") + L10n.T(_tab == Tab.Pads ? "hint.pads" : "hint.list");
             GameUI.Text(new Rect(x, r.yMax - pad - 12 * u, inner, 12 * u), hint, GameUI.Font.Small, GameUI.Dim, TextAnchor.MiddleCenter);
         }
 
@@ -523,36 +574,49 @@ namespace CouchCoop.UI
             Change = dir => Settings.FpsLimit = NextFps(Settings.FpsLimit, dir),
         };
 
-        private List<Row> DuoRows()
+        private List<Row> ListRows(Tab tab) => tab == Tab.Duo ? DuoRows() : tab == Tab.Worlds ? WorldRows() : OptionRows();
+
+        private List<Row> DuoRows() => new List<Row>
+        {
+            new Row { Label = L10n.T(Duo.Active ? "duo.restartP2" : "duo.start"), Value = "F9", Enabled = Duo.ServerInstalled },
+            new Row { Label = L10n.T("duo.layout"), Value = "F10", Enabled = true },
+            new Row { Label = L10n.T("duo.copy"), Value = "F6", Enabled = Duo.ConnectionInfo != null },
+            new Row { Label = L10n.T("duo.stop"), Value = Confirming(3) ? L10n.T("confirm.press") : "", Enabled = Duo.Active },
+        };
+
+        private List<Row> WorldRows()
         {
             bool idle = ServerWorld.NoServerRunning;
+            var v = ServerWorld.View; // cached: building it reads up to 60 files
             string confirm = L10n.T("confirm.press");
+            string running = L10n.T("world.stopFirst.short");
+
+            string current = $"< {v.Server.Index}. {Short(v.Server.Name)}{(v.Server.Generated ? " *" : "")} >";
 
             string backValue;
-            if (!idle) backValue = L10n.T("world.stopFirst.short");
-            else if (!Duo.ServerWorldExists) backValue = "-";
-            else
-            {
-                int target = ServerWorld.BringBackTarget(out bool same);
-                backValue = target < 0 ? L10n.T("world.noFreeSlot.short")
-                    : string.Format(L10n.T(same ? "world.backSame" : "world.backNew"), target);
-            }
+            if (!idle) backValue = running;
+            else if (!v.WorldGenerated) backValue = L10n.T("world.notGenerated");
+            else if (v.BackTarget < 0) backValue = L10n.T("world.noFreeSlot.short");
+            else backValue = v.BackSame ? string.Format(L10n.T("world.backSame"), Short(v.BackName ?? "?"))
+                : string.Format(L10n.T("world.backNew"), v.BackTarget);
 
-            string loadValue = ServerWorld.TryGetSolo(Settings.SourceWorld, out var solo)
-                ? $"< {solo.Index}. {Short(solo.Name)} >" : $"< {Settings.SourceWorld}. - >";
+            string addValue = v.HasSolo ? $"< {v.Solo.Index}. {Short(v.Solo.Name)} >" : $"< {Settings.SourceWorld}. - >";
 
             return new List<Row>
             {
-                new Row { Label = L10n.T(Duo.Active ? "duo.restartP2" : "duo.start"), Value = "F9", Enabled = Duo.ServerInstalled },
-                new Row { Label = L10n.T("duo.layout"), Value = "F10", Enabled = true },
-                new Row { Label = L10n.T("duo.copy"), Value = "F6", Enabled = Duo.ConnectionInfo != null },
-                new Row { Label = L10n.T("duo.stop"), Value = Confirming(3) ? confirm : "", Enabled = Duo.Active },
+                new Row { Label = L10n.T("world.current"), Value = idle ? current : running, Enabled = idle },
+                new Row { Label = L10n.T("world.rename"), Value = _editing ? _editText + "_" : Short(v.Server.Name), Enabled = true },
                 new Row
                 {
-                    Label = string.Format(L10n.T("world.bringBack"), Short(ServerWorld.ServerWorldName)),
-                    Value = Confirming(4) ? confirm : backValue, Enabled = idle && Duo.ServerWorldExists,
+                    Label = L10n.T("world.new"), Enabled = idle,
+                    Value = Confirming(102) ? confirm : $"< {L10n.T("mode." + Modes[_newMode].ToString().ToLowerInvariant())} >",
                 },
-                new Row { Label = L10n.T("world.load"), Value = Confirming(5) ? confirm : loadValue, Enabled = idle },
+                new Row
+                {
+                    Label = string.Format(L10n.T("world.bringBack"), Short(v.Server.Name)),
+                    Value = Confirming(103) ? confirm : backValue, Enabled = idle && v.WorldGenerated,
+                },
+                new Row { Label = L10n.T("world.add"), Value = Confirming(104) ? confirm : addValue, Enabled = idle },
             };
         }
 
