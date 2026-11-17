@@ -14,6 +14,7 @@ namespace CouchCoop
             ["tab.pads"] = ("Controllers", "Manettes"),
             ["tab.duo"] = ("Split screen", "Écran partagé"),
             ["tab.options"] = ("Options", "Options"),
+            ["tab.optionsP2"] = ("P2 options", "Options J2"),
 
             ["pads.p1"] = ("P1", "J1"),
             ["pads.p2"] = ("P2", "J2"),
@@ -50,7 +51,9 @@ namespace CouchCoop
             ["opt.autoopen"] = ("Open this menu for new controllers", "Ouvrir ce menu (nouvelle manette)"),
             ["opt.world"] = ("World copied to the server", "Monde copié dans le serveur"),
             ["opt.world.done"] = ("Already copied", "Déjà copié"),
-            ["opt.scale"] = ("Scale (UI and zoom)", "Échelle (interface et zoom)"),
+            ["opt.scale"] = ("Zoom (this window)", "Zoom (cette fenêtre)"),
+            ["opt.fps"] = ("Frame rate cap", "Limite d'images/s"),
+            ["opt.fps.game"] = ("Game setting", "Réglage du jeu"),
             ["opt.auto"] = ("Auto", "Auto"),
             ["opt.restart"] = ("Applies next time split screen starts", "S'applique au prochain lancement"),
 

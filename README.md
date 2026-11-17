@@ -18,7 +18,8 @@ The repository also contains **NotProton Fixes**, a separate optional mod that m
 - **Both players are admins** of the local server.
 - **Separate P2 saves**: characters and game settings. P2's music is muted by default, but sound effects stay on.
 - **In-game hub drawn with the game's own fonts and UI frames**, usable with a controller (TV / Steam Deck friendly), in English and French.
-- **Configurable scale**: one setting (Auto, x1 to x4) for the game's UI and zoom in each half, and for the mod's menus. It is always an integer scale, so everything stays crisp.
+- **Zoom per window**: Auto or x1 to x4, set separately by P1 and P2 (P2 opens its own options with Select + Start or F8). Always an integer scale, so the world stays crisp. The game's UI and the mod's menus keep a readable size whatever the zoom.
+- **Smooth split screen**: both windows run at the same frame rate (60 by default) with low input latency, even the one without focus.
 
 **NotProton Fixes** (macOS + NotProton only; does nothing elsewhere)
 - Skips the game's Steam Cloud sync, which crashes the first load under NotProton.
@@ -81,7 +82,9 @@ Edit them in the hub's *Options* tab. They are stored through the game's officia
 | `Duo-autoFillJoin` | `true` | Pre-fill *Join With IP* |
 | `Duo-sourceWorld` | `0` | World copied into the server the first time |
 | `Duo-serverPassword` | random | Local server password |
-| `Display-scale` | `0` | `0` = auto, `1`-`4` = fixed pixel scale for split screen and the mod's menus |
+| `Display-scale` | `0` | P1 world zoom: `0` = auto, `1`-`4` = fixed |
+| `Display-scaleP2` | `0` | P2 world zoom, set from the P2 window |
+| `Performance-fpsLimit` | `60` | Frame rate cap of each window in split screen (`0` = game setting) |
 | `Controllers-autoOpenSelector` | `true` | Open the hub when a new controller appears |
 | `NotProtonFixes` › `safeWrites`, `skipCloudSync` | `auto` | `auto` (only under Wine), `on`, `off` |
 

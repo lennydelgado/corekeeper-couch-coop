@@ -7,6 +7,7 @@ namespace CouchCoop.UI
     /// <summary>
     /// The mod's UI, fully usable with a controller (TV, Steam Deck):
     ///  - a 3-tab hub (Controllers / Split screen / Options): hold Select+Start for 1 s, or F8;
+    ///    in the P2 window the same gesture (P2's controller) opens P2's own options (zoom, frame cap);
     ///  - a connection card (in split screen) and toasts;
     ///  - keyboard shortcuts: F8 hub, F9 start split screen, F10 half/full screen, F6 copy, F7 card, F11 diagnostics.
     /// Drawn with the game's own fonts and UI sprites (see GameUI).
@@ -25,6 +26,8 @@ namespace CouchCoop.UI
         private readonly Dictionary<string, float> _flash = new Dictionary<string, float>();
         private string _toast;
         private float _toastUntil;
+
+        private void Awake() => useGUILayout = false; // no IMGUI layout pass: we only draw with absolute rects
 
         private void OnEnable() => PadAssignment.PadsChanged += OnPadsChanged;
         private void OnDisable() => PadAssignment.PadsChanged -= OnPadsChanged;
@@ -47,6 +50,7 @@ namespace CouchCoop.UI
             WindowLayout.Tick();
             Duo.Tick();
             Diagnostics.Tick();
+            Perf.Tick();
             if (!ReInput.isReady) return;
 
             if (!_startupDone)
@@ -68,7 +72,12 @@ namespace CouchCoop.UI
             if (Input.GetKeyDown(KeyCode.F7)) _showCard = !_showCard;
             if (Input.GetKeyDown(KeyCode.F10)) WindowLayout.Toggle();
             if (Input.GetKeyDown(KeyCode.F6)) { Duo.CopyConnectionToClipboard(); Toast(L10n.T("duo.copied")); }
-            if (Duo.IsJ2) return; // the P2 window does not manage controllers or start anything
+            if (Duo.IsJ2)
+            {
+                // The P2 window does not manage controllers or start anything: only its own options.
+                if (Input.GetKeyDown(KeyCode.F8) || ComboHeld()) Open(Tab.Options);
+                return;
+            }
 
             if (Input.GetKeyDown(KeyCode.F8) || ComboHeld()) { Open(Tab.Pads); return; }
             if (Input.GetKeyDown(KeyCode.F9)) { Toast(Duo.Start(Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)), 6f); return; }
@@ -86,6 +95,7 @@ namespace CouchCoop.UI
             bool held = false;
             foreach (var j in PadAssignment.Joysticks)
             {
+                if (!IsMine(j)) continue; // P2's combo must not open P1's menu, and the other way round
                 var gp = j.GetTemplate<IGamepadTemplate>();
                 if (gp != null && gp.center1.value && gp.center2.value) { held = true; break; }
             }
@@ -93,6 +103,15 @@ namespace CouchCoop.UI
             if (_comboStart < 0f) _comboStart = Time.unscaledTime;
             return Time.unscaledTime - _comboStart >= ComboHoldSeconds;
         }
+
+        /// <summary>Controllers this window listens to outside the Controllers tab (P1 window: all but P2's).</summary>
+        private static bool IsMine(Joystick j)
+        {
+            int slot = PadStore.GetSlot(PadAssignment.KeyOf(j));
+            return Duo.IsJ2 ? slot == 2 : slot != 2;
+        }
+
+        private Tab[] Tabs => Duo.IsJ2 ? new[] { Tab.Options } : new[] { Tab.Pads, Tab.Duo, Tab.Options };
 
         // ================================================================ open / close
 
@@ -123,6 +142,7 @@ namespace CouchCoop.UI
 
         private void CloseAndSave()
         {
+            if (Duo.IsJ2) { Cancel(); return; } // P2 only changes its options (saved right away), never the controllers
             foreach (var j in PadAssignment.Joysticks)
             {
                 string key = PadAssignment.KeyOf(j);
@@ -137,10 +157,10 @@ namespace CouchCoop.UI
 
         private void Cancel()
         {
-            _dismissed = true;
+            if (!Duo.IsJ2) _dismissed = true;
             _open = false;
             PadAssignment.Suspended = false;
-            if (PadAssignment.HasConnectedPadForThisWindow()) PadAssignment.Apply("hub cancelled");
+            if (Duo.IsJ2 || PadAssignment.HasConnectedPadForThisWindow()) PadAssignment.Apply("hub cancelled");
             else PadAssignment.RestoreGameDefault();
         }
 
@@ -167,6 +187,7 @@ namespace CouchCoop.UI
             {
                 var f = PadReader.Read(j);
                 if (!f.Any) continue;
+                if (_tab != Tab.Pads && !IsMine(j)) continue; // the other player's controller does not drive this menu
                 string key = PadAssignment.KeyOf(j);
                 _flash[key] = Time.unscaledTime;
                 if (f.lb) tabDelta = -1;
@@ -191,16 +212,23 @@ namespace CouchCoop.UI
                 }
             }
 
-            if (tabDelta != 0) { _tab = (Tab)(((int)_tab + tabDelta + 3) % 3); _cursor = 0; return; }
+            if (tabDelta != 0)
+            {
+                var tabs = Tabs;
+                int i = System.Array.IndexOf(tabs, _tab);
+                _tab = tabs[((i < 0 ? 0 : i) + tabDelta + tabs.Length) % tabs.Length];
+                _cursor = 0;
+                return;
+            }
             if (close) { CloseAndSave(); return; }
 
             if (_tab == Tab.Pads) { if (accept) CloseAndSave(); return; }
             if (back) { CloseAndSave(); return; }
 
-            int count = _tab == Tab.Duo ? 3 : 7;
+            int count = _tab == Tab.Duo ? 3 : OptionRows().Count;
             if (dy != 0) _cursor = (_cursor - dy + count) % count; // up = previous item
             if (_tab == Tab.Duo && (accept || dx != 0)) RunDuoAction(_cursor);
-            if (_tab == Tab.Options && (accept || dx != 0)) ChangeOption(_cursor, dx == 0 ? 1 : dx);
+            if (_tab == Tab.Options && (accept || dx != 0)) OptionRows()[_cursor].Change?.Invoke(dx == 0 ? 1 : dx);
         }
 
         private void MovePad(Joystick j, string key, int dir)
@@ -231,23 +259,6 @@ namespace CouchCoop.UI
                 case 0: CloseAndSave(); Toast(Duo.Start(restartP2: Duo.Active), 6f); break;
                 case 1: WindowLayout.Toggle(); break;
                 case 2: Duo.CopyConnectionToClipboard(); Toast(L10n.T("duo.copied")); break;
-            }
-        }
-
-        private void ChangeOption(int index, int dir)
-        {
-            switch (index)
-            {
-                case 0:
-                    Settings.SideBySide = !Settings.SideBySide;
-                    if (Duo.Active && WindowLayout.IsSplit(WindowLayout.Current)) WindowLayout.Request(WindowLayout.DuoSide(Duo.IsJ2), 0f);
-                    break;
-                case 1: Settings.FillWindow = !Settings.FillWindow; break;
-                case 2: Settings.MuteJ2Music = !Settings.MuteJ2Music; Toast(L10n.T("opt.restart")); break;
-                case 3: Settings.AutoFillJoin = !Settings.AutoFillJoin; break;
-                case 4: Settings.AutoOpenSelector = !Settings.AutoOpenSelector; break;
-                case 5: if (!Duo.ServerWorldExists) Settings.SourceWorld = (Settings.SourceWorld + dir + 30) % 30; break;
-                case 6: Settings.Scale = (Settings.Scale + dir + Settings.MaxScale + 1) % (Settings.MaxScale + 1); break;
             }
         }
 
@@ -332,7 +343,7 @@ namespace CouchCoop.UI
         {
             var pads = PadAssignment.Joysticks;
             float rowH = 18 * u, gap = 2 * u, pad = 10 * u;
-            int rows = _tab == Tab.Pads ? Mathf.Max(1, pads.Count) : (_tab == Tab.Duo ? 3 : 7);
+            int rows = _tab == Tab.Pads ? Mathf.Max(1, pads.Count) : (_tab == Tab.Duo ? 3 : OptionRows().Count);
             float bodyH = (_tab == Tab.Pads ? 16 * u : 0) + rows * (rowH + gap) + (_tab == Tab.Pads ? 12 * u : 0);
             float w = Mathf.Min(Screen.width - 8 * u, 330 * u);
             float h = Mathf.Min(Screen.height - 8 * u, pad + 16 * u + 6 * u + 18 * u + 8 * u + bodyH + 16 * u + pad);
@@ -344,14 +355,16 @@ namespace CouchCoop.UI
             y += 16 * u + 6 * u;
 
             // Tabs: the selected one uses the hotbar slot (wood), the others the tooltip box.
-            string[] tabs = { L10n.T("tab.pads"), L10n.T("tab.duo"), L10n.T("tab.options") };
-            float tw = (inner - 2 * gap) / 3f;
-            for (int i = 0; i < 3; i++)
+            var tabIds = Tabs;
+            float tw = (inner - (tabIds.Length - 1) * gap) / tabIds.Length;
+            for (int i = 0; i < tabIds.Length; i++)
             {
                 var tr = new Rect(x + i * (tw + gap), y, tw, 18 * u);
-                bool sel = (int)_tab == i;
+                bool sel = _tab == tabIds[i];
+                string label = tabIds[i] == Tab.Pads ? L10n.T("tab.pads") : tabIds[i] == Tab.Duo ? L10n.T("tab.duo")
+                    : Duo.IsJ2 ? L10n.T("tab.optionsP2") : L10n.T("tab.options");
                 GameUI.Draw(sel ? GameUI.Frame.Slot : GameUI.Frame.Box, tr, sel ? (Color?)null : new Color(0.7f, 0.7f, 0.75f));
-                GameUI.Text(tr, tabs[i], GameUI.Font.Medium, sel ? GameUI.White : GameUI.Dim, TextAnchor.MiddleCenter);
+                GameUI.Text(tr, label, GameUI.Font.Medium, sel ? GameUI.White : GameUI.Dim, TextAnchor.MiddleCenter);
             }
             y += 18 * u + 8 * u;
 
@@ -360,7 +373,7 @@ namespace CouchCoop.UI
             else if (_tab == Tab.Duo) DrawList(body, rowH, gap, DuoRows());
             else DrawList(body, rowH, gap, OptionRows());
 
-            string hint = L10n.T("hint.tabs") + "    " + L10n.T(_tab == Tab.Pads ? "hint.pads" : "hint.list");
+            string hint = (Tabs.Length > 1 ? L10n.T("hint.tabs") + "    " : "") + L10n.T(_tab == Tab.Pads ? "hint.pads" : "hint.list");
             GameUI.Text(new Rect(x, r.yMax - pad - 12 * u, inner, 12 * u), hint, GameUI.Font.Small, GameUI.Dim, TextAnchor.MiddleCenter);
         }
 
@@ -400,7 +413,33 @@ namespace CouchCoop.UI
             public string Label, Value;
             public bool Enabled;
             public bool? Check; // non-null: draw the game's check box instead of a text value
+            public System.Action<int> Change; // called with -1 / +1 (left / right, A = +1)
         }
+
+        private static readonly int[] FpsSteps = { 0, 30, 45, 60, 90, 120 };
+
+        private static int NextFps(int cur, int dir)
+        {
+            int i = System.Array.IndexOf(FpsSteps, cur);
+            if (i < 0) i = 3;
+            return FpsSteps[(i + dir + FpsSteps.Length) % FpsSteps.Length];
+        }
+
+        private Row ZoomRow() => new Row
+        {
+            Label = L10n.T("opt.scale"),
+            Value = Settings.MyScale == 0 ? $"< {L10n.T("opt.auto")} (x{Settings.PixelScaleFor(Screen.height)}) >" : $"< x{Settings.MyScale} >",
+            Enabled = true,
+            Change = dir => Settings.MyScale = (Settings.MyScale + dir + Settings.MaxScale + 1) % (Settings.MaxScale + 1),
+        };
+
+        private Row FpsRow() => new Row
+        {
+            Label = L10n.T("opt.fps"),
+            Value = Settings.FpsLimit == 0 ? $"< {L10n.T("opt.fps.game")} >" : $"< {Settings.FpsLimit} >",
+            Enabled = true,
+            Change = dir => Settings.FpsLimit = NextFps(Settings.FpsLimit, dir),
+        };
 
         private List<Row> DuoRows() => new List<Row>
         {
@@ -411,16 +450,31 @@ namespace CouchCoop.UI
 
         private List<Row> OptionRows()
         {
+            if (Duo.IsJ2) return new List<Row> { ZoomRow(), FpsRow() };
+
             bool worldDone = Duo.ServerWorldExists;
             return new List<Row>
             {
-                new Row { Label = L10n.T("opt.layout"), Value = L10n.T(Settings.SideBySide ? "opt.layout.side" : "opt.layout.stacked"), Enabled = true },
-                new Row { Label = L10n.T("opt.fill"), Check = Settings.FillWindow, Enabled = true },
-                new Row { Label = L10n.T("opt.music"), Check = Settings.MuteJ2Music, Enabled = true },
-                new Row { Label = L10n.T("opt.autofill"), Check = Settings.AutoFillJoin, Enabled = true },
-                new Row { Label = L10n.T("opt.autoopen"), Check = Settings.AutoOpenSelector, Enabled = true },
-                new Row { Label = L10n.T("opt.world"), Value = worldDone ? L10n.T("opt.world.done") : $"< {Settings.SourceWorld} >", Enabled = !worldDone },
-                new Row { Label = L10n.T("opt.scale"), Value = Settings.Scale == 0 ? $"< {L10n.T("opt.auto")} (x{GameUI.Px}) >" : $"< x{Settings.Scale} >", Enabled = true },
+                new Row
+                {
+                    Label = L10n.T("opt.layout"), Value = L10n.T(Settings.SideBySide ? "opt.layout.side" : "opt.layout.stacked"), Enabled = true,
+                    Change = _ =>
+                    {
+                        Settings.SideBySide = !Settings.SideBySide;
+                        if (Duo.Active && WindowLayout.IsSplit(WindowLayout.Current)) WindowLayout.Request(WindowLayout.DuoSide(Duo.IsJ2), 0f);
+                    },
+                },
+                new Row { Label = L10n.T("opt.fill"), Check = Settings.FillWindow, Enabled = true, Change = _ => Settings.FillWindow = !Settings.FillWindow },
+                new Row { Label = L10n.T("opt.music"), Check = Settings.MuteJ2Music, Enabled = true, Change = _ => { Settings.MuteJ2Music = !Settings.MuteJ2Music; Toast(L10n.T("opt.restart")); } },
+                new Row { Label = L10n.T("opt.autofill"), Check = Settings.AutoFillJoin, Enabled = true, Change = _ => Settings.AutoFillJoin = !Settings.AutoFillJoin },
+                new Row { Label = L10n.T("opt.autoopen"), Check = Settings.AutoOpenSelector, Enabled = true, Change = _ => Settings.AutoOpenSelector = !Settings.AutoOpenSelector },
+                new Row
+                {
+                    Label = L10n.T("opt.world"), Value = worldDone ? L10n.T("opt.world.done") : $"< {Settings.SourceWorld} >", Enabled = !worldDone,
+                    Change = dir => { if (!Duo.ServerWorldExists) Settings.SourceWorld = (Settings.SourceWorld + dir + 30) % 30; },
+                },
+                ZoomRow(),
+                FpsRow(),
             };
         }
 

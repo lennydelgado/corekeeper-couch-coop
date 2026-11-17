@@ -25,10 +25,14 @@ namespace CouchCoop.UI
 
         private static readonly string[] SpriteNames = { "32x32_menu_border", "32x32_itemui_border", "hot_bar_border", "checkBox_0", "checkBox_1" };
         private static readonly Dictionary<Frame, Sprite> Sprites = new Dictionary<Frame, Sprite>();
-        private static float _nextSearch;
+        private static float _nextSearch, _searchDelay = 2f;
+        private static int _searchScene = -1;
 
-        /// <summary>Integer UI scale: the "scale" setting, or auto (≈270 game pixels of height, like the game).</summary>
-        public static int Px => Settings.PixelScaleFor(Screen.height);
+        /// <summary>
+        /// Integer UI scale of the mod's menus: the same size the game picks for its own UI (≈270 game pixels
+        /// of height). Independent of the world zoom, so a big zoom never makes the menus huge or tiny.
+        /// </summary>
+        public static int Px => Settings.AutoScaleFor(Screen.height);
 
         // ---------------------------------------------------------------- frames
 
@@ -49,8 +53,15 @@ namespace CouchCoop.UI
         private static Sprite GetSprite(Frame f)
         {
             if (Sprites.TryGetValue(f, out var s) && s != null) return s;
+
+            // FindObjectsOfTypeAll walks every loaded sprite (the game holds ~750k objects) and allocates a big
+            // array: done every 2 s it caused hitches and extra garbage collections in both windows.
+            // Now: back off (2 s, 4 s, ... up to 60 s) and start again quickly only after a scene change.
+            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            if (scene != _searchScene) { _searchScene = scene; _searchDelay = 2f; _nextSearch = Time.unscaledTime + 1f; }
             if (Time.unscaledTime < _nextSearch) return null;
-            _nextSearch = Time.unscaledTime + 2f; // sprites appear once the game's menus are loaded
+            _nextSearch = Time.unscaledTime + _searchDelay;
+            _searchDelay = Mathf.Min(60f, _searchDelay * 2f);
             foreach (var sp in Resources.FindObjectsOfTypeAll<Sprite>())
             {
                 if (sp == null) continue;

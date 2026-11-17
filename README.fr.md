@@ -18,7 +18,8 @@ Le dépôt contient aussi **NotProton Fixes**, un mod séparé et facultatif qui
 - **J1 et J2 admins** du serveur local.
 - **Sauvegardes de J2 séparées** : personnages et réglages du jeu. La musique de J2 est coupée par défaut, mais les bruitages restent.
 - **Hub en jeu dessiné avec les polices et cadres du jeu**, utilisable à la manette (télé, Steam Deck), en français et en anglais.
-- **Échelle réglable** : un seul réglage (Auto, x1 à x4) pour l'interface et le zoom du jeu dans chaque moitié, et pour les menus du mod. C'est toujours un facteur entier, donc tout reste net.
+- **Zoom par fenêtre** : Auto ou x1 à x4, réglé séparément par J1 et J2 (J2 ouvre ses propres options avec Select + Start ou F8). C'est toujours un facteur entier, donc le monde reste net. L'interface du jeu et les menus du mod gardent une taille lisible quel que soit le zoom.
+- **Écran partagé fluide** : les deux fenêtres tournent à la même cadence (60 images/s par défaut) avec peu de latence, même celle qui n'a pas le focus.
 
 **NotProton Fixes** (macOS + NotProton uniquement, sans effet ailleurs)
 - Ignore la synchro Steam Cloud du jeu, qui fait planter le premier chargement sous NotProton.
