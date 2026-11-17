@@ -55,7 +55,7 @@ Same as Windows: copy `CouchCoop` into `CoreKeeper_Data/StreamingAssets/Mods/`.
 
 | | Controller | Keyboard |
 |---|---|---|
-| Open the hub | hold **Select + Start** for 1 s | **F8** |
+| Open the hub | hold **Select + Start** (or both stick clicks, **L3 + R3**) for 1 s | **F8** |
 | Switch tab | **LB / RB** | Q / E |
 | Start split screen | hub › *Split screen* › *Start* | **F9** |
 | Half screen ⇄ full screen | hub › *Split screen* | **F10** |
@@ -99,6 +99,8 @@ Edit them in the hub's *Options* tab. They are stored through the game's officia
   - P2: `…/Core Keeper/J2/Player.log`
   - Server: `…/CouchCoop/Server/CoreKeeperServerLog.txt`
   - Mod lines start with `[CouchCoop]` / `[NotProtonFixes]`.
+- **World backups**: each time split screen starts, the server world is copied to `…/CouchCoop/Backups/session/1` to `5` (the oldest is replaced). To restore one, close the game and copy `world.gzip` (and `world.worldinfo`) back over the paths written in its `about.txt`.
+- **P1 crashed**: the P2 window notices it, asks the server to save and stop, and closes. If the server it started is still running next time, split screen reuses it (a dedicated server you run yourself is never touched).
 - **P2 window stuck on a black screen**: close it, then use *Restart P2 window* in the hub (or Shift+F9).
 - **macOS: "mod load failed"**: run the installer again. It re-applies the NotProton loader workaround.
 - **Display issues** (black bars, blurry text): press **F11** in the affected window, then share `Player.log`. It lists every camera and its render size.

@@ -55,7 +55,7 @@ Comme sous Windows : copie `CouchCoop` dans `CoreKeeper_Data/StreamingAssets/Mod
 
 | | Manette | Clavier |
 |---|---|---|
-| Ouvrir le hub | **Select + Start** maintenus 1 s | **F8** |
+| Ouvrir le hub | **Select + Start** (ou les deux clics de stick, **L3 + R3**) maintenus 1 s | **F8** |
 | Changer d'onglet | **LB / RB** | Q / E |
 | Lancer l'écran partagé | hub › *Écran partagé* › *Lancer* | **F9** |
 | Moitié d'écran ⇄ plein écran | hub › *Écran partagé* | **F10** |
@@ -85,6 +85,8 @@ Modifiables dans l'onglet *Options* du hub. Ils sont stockés via l'API officiel
   - J2 : `…/Core Keeper/J2/Player.log`
   - Serveur : `…/CouchCoop/Server/CoreKeeperServerLog.txt`
   - Les lignes des mods commencent par `[CouchCoop]` / `[NotProtonFixes]`.
+- **Sauvegardes du monde** : à chaque lancement de l'écran partagé, le monde du serveur est copié dans `…/CouchCoop/Backups/session/1` à `5` (la plus ancienne est remplacée). Pour en restaurer une, ferme le jeu et recopie `world.gzip` (et `world.worldinfo`) aux emplacements indiqués dans son `about.txt`.
+- **J1 a planté** : la fenêtre J2 s'en rend compte, demande au serveur de sauvegarder et de s'arrêter, puis se ferme. Si le serveur qu'il a lancé tourne encore la fois suivante, l'écran partagé le réutilise (un serveur dédié que tu lances toi-même n'est jamais touché).
 - **Fenêtre J2 bloquée sur un écran noir** : ferme-la, puis utilise *Relancer la fenêtre J2* dans le hub (ou Maj+F9).
 - **macOS : « mod load failed »** : relance l'installateur. Il réapplique le contournement NotProton.
 - **Problèmes d'affichage** (bandes noires, texte flou) : appuie sur **F11** dans la fenêtre concernée, puis partage `Player.log`. Il liste chaque caméra et sa taille de rendu.
