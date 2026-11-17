@@ -130,7 +130,7 @@ namespace CouchCoop
             int target = BringBackTarget(out bool same);
             if (target < 0) return L10n.T("world.noFreeSlot");
 
-            if (same) WorldBackup.Save($"solo world {target} before bringing the server world back", SoloWorld(target), SoloInfo(target));
+            if (same) WorldBackup.Save(WorldBackup.BeforeReplace, $"solo world {target} before bringing the server world back", SoloWorld(target), SoloInfo(target));
             try
             {
                 SafeFile.WriteAllBytes(SoloWorld(target), File.ReadAllBytes(ServerWorldFile));
@@ -166,7 +166,7 @@ namespace CouchCoop
             if (!NoServerRunning) return L10n.T("world.stopFirst");
             if (!TryGetSolo(i, out var slot)) return L10n.T("world.noSolo");
 
-            WorldBackup.Save($"server world before loading solo world {i} ({slot.Name})", ServerWorldFile, ServerInfoFile);
+            WorldBackup.Save(WorldBackup.BeforeReplace, $"server world before loading solo world {i} ({slot.Name})", ServerWorldFile, ServerInfoFile);
             if (!Copy(SoloWorld(i), SoloInfo(i), ServerWorldFile, ServerInfoFile)) return L10n.T("world.failed");
             try
             {

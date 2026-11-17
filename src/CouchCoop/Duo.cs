@@ -252,11 +252,7 @@ namespace CouchCoop
         {
             if (IsJ2 || !_started) return L10n.T("duo.notRunning");
             StopServer();
-            if (IsRunning(_j2Process))
-            {
-                try { Process.Start(new ProcessStartInfo("taskkill.exe", $"/pid {_j2Process.Id}") { UseShellExecute = false }); }
-                catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} P2 close: {e.Message}"); }
-            }
+            if (IsRunning(_j2Process)) StopGracefully(SafePid(_j2Process), "P2 window");
             _started = false;
             _stopping = true;
             _j2Pending = false;
