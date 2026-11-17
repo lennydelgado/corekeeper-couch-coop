@@ -76,7 +76,7 @@ L'écran partagé joue sur les mondes propres au serveur local, séparés de tes
 - **Monde du serveur** : celui que l'écran partagé charge (gauche / droite). Le serveur peut en garder 30.
 - **Renommer** : tape le nouveau nom au clavier. Les joueurs le voient en rejoignant, et le monde solo le reprend quand tu le ramènes.
 - **Nouveau monde** : choisis le mode (Normal, Difficile, Détente, Créatif), puis confirme. Le serveur le génère avec une graine aléatoire au prochain lancement. Pour tous les réglages de génération (graine, biomes), crée plutôt le monde dans le jeu, puis utilise *Ajouter depuis le solo*.
-- **Ramener "…" en solo** : recopie le monde du serveur sur le monde solo d'origine, ou dans un emplacement libre. Votre progression à deux apparaît alors dans ta liste de mondes solo.
+- **Ramener "…" en solo** : recopie le monde du serveur sur le monde solo d'origine, ou dans un emplacement libre. Votre progression à deux apparaît alors dans ta liste de mondes solo, sous le nom `Coop: <nom>` pour bien voir que c'est un monde Couch Co-op (le préfixe est retiré quand tu le rajoutes au serveur).
 - **Ajouter depuis le solo** : copie un monde solo sur le serveur, comme nouveau monde. Rien n'est remplacé sur le serveur.
 
 Les actions demandent d'appuyer deux fois sur A. Ramener un monde sauvegarde d'abord le monde solo qu'il remplace (`…/CouchCoop/Backups`).

@@ -8,7 +8,7 @@
 - If P1 crashes, P2 asks the server to save and stop, then closes. A server left running is reused next time instead of starting a second one.
 - The hub also opens by holding both stick clicks (L3 + R3) for 1 s, for controllers whose Select is not seen (some Xbox controllers over Bluetooth). The first Select / Start press of each controller is logged.
 - *Split screen* tab: stop split screen (the server saves and closes).
-- New *Worlds* tab: several worlds on the local server, pick the one to play, rename it (keyboard), create a new one (mode, random seed), add a solo world, bring a server world back to the solo worlds (the replaced solo world is backed up first).
+- New *Worlds* tab: several worlds on the local server, pick the one to play, rename it (keyboard), create a new one (mode, random seed), add a solo world, bring a server world back to the solo worlds as `Coop: <name>` (the replaced solo world is backed up first).
 - Split screen limits: Steam copy of the game required, local server capped at 2 players, P2 window only started by P1 (one-time token), P2 can only join the local server.
 - Each player is told when their controller disconnects and reconnects.
 - Zoomed-out split screen: lights no longer stay black for a moment. The game updates a few light shadows per frame, sized for its normal view; the budget now grows with the visible area.

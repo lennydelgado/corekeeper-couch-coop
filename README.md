@@ -76,7 +76,7 @@ Split screen plays on the local server's own worlds, kept apart from your solo w
 - **Server world**: the one split screen loads (left / right). The server can keep up to 30.
 - **Rename**: type the new name on the keyboard. Players see it when they join, and the solo world gets it when you bring it back.
 - **New world**: pick the mode (Normal, Hard, Casual, Creative), then confirm. The server generates it with a random seed at the next start. For full generation settings (seed, biomes), create the world in the game instead, then use *Add from solo*.
-- **Bring "…" back to solo**: copies the server world over the solo world it came from, or into a free slot. Your progress together then shows up in your solo world list.
+- **Bring "…" back to solo**: copies the server world over the solo world it came from, or into a free slot. Your progress together then shows up in your solo world list, named `Coop: <name>` so you can tell it is a Couch Co-op world (the prefix is removed again when you add it back to the server).
 - **Add from solo**: copies a solo world to the server as a new world. Nothing on the server is replaced.
 
 Actions ask for A twice. Bringing a world back saves the solo world it replaces first (`…/CouchCoop/Backups`).

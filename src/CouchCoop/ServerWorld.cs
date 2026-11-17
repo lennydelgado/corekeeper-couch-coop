@@ -30,6 +30,18 @@ namespace CouchCoop
         public const int MaxSlots = 30;
         public const int MaxNameLength = 24;
 
+        /// <summary>
+        /// Prefix of a world brought back to the solo worlds, so a Couch Co-op world is easy to spot in the solo
+        /// list. Server names never carry it: it is added on bring back and removed on add from solo.
+        /// </summary>
+        public const string SoloPrefix = "Coop: ";
+
+        public static string WithPrefix(string name) =>
+            name.StartsWith(SoloPrefix, StringComparison.Ordinal) ? name : SoloPrefix + name;
+
+        public static string WithoutPrefix(string name) =>
+            name != null && name.StartsWith(SoloPrefix, StringComparison.Ordinal) ? name.Substring(SoloPrefix.Length) : name;
+
         /// <summary>Name of a world the server generated without a worldinfo (first start without a solo world).</summary>
         public const string GeneratedName = "Couch Co-op";
 
@@ -213,7 +225,10 @@ namespace CouchCoop
             try
             {
                 SafeFile.WriteAllBytes(WorldFile(i), File.ReadAllBytes(SoloWorld(solo)));
-                SafeFile.WriteAllBytes(InfoFile(i), File.ReadAllBytes(SoloInfo(solo)));
+                var info = ReadInfo(SoloInfo(solo));
+                if (info == null) return L10n.T("world.failed");
+                info.name = WithoutPrefix(info.name);
+                if (!WriteInfo(InfoFile(i), info)) return L10n.T("world.failed");
                 if (SoloGen(solo) != null && SafeFile.Exists(SoloGen(solo))) SafeFile.WriteAllBytes(GenFile(i), File.ReadAllBytes(SoloGen(solo)));
                 SafeFile.WriteAllText(LinkFile(i), solo.ToString());
             }
@@ -234,7 +249,7 @@ namespace CouchCoop
             if (!SafeFile.Exists(CurrentWorldFile)) return L10n.T("world.noServerWorld");
             int target = BringBackTarget(out bool same);
             if (target < 0) return L10n.T("world.noFreeSlot");
-            string name = CurrentName;
+            string name = WithPrefix(CurrentName);
 
             if (same) WorldBackup.Save(WorldBackup.BeforeReplace, $"solo world {target} before bringing server world {Current} back", SoloWorld(target), SoloInfo(target));
             try
@@ -269,7 +284,7 @@ namespace CouchCoop
         /// <summary>Renames the current server world (applies when the server starts, and when it is brought back).</summary>
         public static string Rename(string name)
         {
-            name = (name ?? "").Trim();
+            name = WithoutPrefix((name ?? "").Trim()).Trim();
             if (name.Length == 0) return null;
             if (name.Length > MaxNameLength) name = name.Substring(0, MaxNameLength);
             var info = ReadInfo(CurrentInfoFile) ?? new WorldInfo { version = WorldInfo.CURRENT_VERSION, creationDate = new CreationDate(DateTime.Now) };
