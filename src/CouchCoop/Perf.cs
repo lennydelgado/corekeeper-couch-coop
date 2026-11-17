@@ -94,6 +94,35 @@ namespace CouchCoop
         }
     }
 
+    /// <summary>
+    /// Light shadows are rendered from a queue, a few lights per frame (2 + light quality, set every frame in
+    /// CameraManager.UpdateLightQuality). The budget is sized for the normal 480x270 view. A zoomed-out split screen
+    /// shows up to 4x more world, so many more lights enter the view at once and wait their turn: their area
+    /// stays black, then lights up all at once. The budget grows with the visible area.
+    /// </summary>
+    [HarmonyPatch(typeof(CameraManager), "UpdateLightQuality")]
+    internal static class LightBudgetPatch
+    {
+        private static int _logged;
+
+        private static void Postfix()
+        {
+            if (!AspectFill.Enabled || AspectFill.UseUiSize(null)) return;
+            int baseBudget = Pug.RP.Shadows.maxShadowUpdatesPerFrameOverride;
+            if (baseBudget <= 0) return;
+            AspectFill.Compute(out int w, out int h);
+            float area = w * (float)h / (480f * 270f);
+            if (area <= 1.05f) return;
+            int budget = Mathf.CeilToInt(baseBudget * area);
+            Pug.RP.Shadows.maxShadowUpdatesPerFrameOverride = budget;
+            if (_logged != budget)
+            {
+                _logged = budget;
+                Debug.Log($"{CouchCoopMod.Tag} [perf] light shadows: {budget} updates per frame (game {baseBudget}, view {w}x{h} = {area:0.0}x the normal area)");
+            }
+        }
+    }
+
     [HarmonyPatch(typeof(Manager), "Update")]
     internal static class FramePacingPatch
     {

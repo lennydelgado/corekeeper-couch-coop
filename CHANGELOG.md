@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### CouchCoop
+- macOS: the top half no longer overlaps the bottom one. Halves are placed in the screen's work area, below the menu bar (hide the menu bar automatically to use the whole screen).
+- Zoomed-out split screen: lights no longer stay black for a moment. The game updates a few light shadows per frame, sized for its normal view; the budget now grows with the visible area.
+
 ## 1.1.0
 
 ### CouchCoop
