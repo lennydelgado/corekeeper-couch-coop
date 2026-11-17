@@ -273,9 +273,9 @@ namespace CouchCoop.UI
             if (_tab == Tab.Pads) { if (accept) CloseAndSave(); return; }
             if (back) { CloseAndSave(); return; }
 
-            int count = _tab == Tab.Duo ? 3 : OptionRows().Count;
-            if (dy != 0) _cursor = (_cursor - dy + count) % count; // up = previous item
-            if (_tab == Tab.Duo && (accept || dx != 0)) RunDuoAction(_cursor);
+            int count = _tab == Tab.Duo ? DuoRows().Count : OptionRows().Count;
+            if (dy != 0) { _cursor = (_cursor - dy + count) % count; _confirmRow = -1; } // up = previous item
+            if (_tab == Tab.Duo && (accept || dx != 0)) RunDuoAction(_cursor, accept, dx);
             if (_tab == Tab.Options && (accept || dx != 0)) OptionRows()[_cursor].Change?.Invoke(dx == 0 ? 1 : dx);
         }
 
@@ -300,13 +300,38 @@ namespace CouchCoop.UI
             return null;
         }
 
-        private void RunDuoAction(int index)
+        private int _confirmRow = -1;
+        private float _confirmUntil;
+
+        /// <summary>Actions that replace or stop something need A twice (within 4 s).</summary>
+        private bool Confirm(int row)
+        {
+            if (_confirmRow == row && Time.unscaledTime < _confirmUntil) { _confirmRow = -1; return true; }
+            _confirmRow = row;
+            _confirmUntil = Time.unscaledTime + 4f;
+            Toast(L10n.T("confirm.again"), 4f);
+            return false;
+        }
+
+        private bool Confirming(int row) => _confirmRow == row && Time.unscaledTime < _confirmUntil;
+
+        private void RunDuoAction(int index, bool accept, int dx)
         {
             switch (index)
             {
                 case 0: CloseAndSave(); Toast(Duo.Start(restartP2: Duo.Active), 6f); break;
                 case 1: WindowLayout.Toggle(); break;
                 case 2: Duo.CopyConnectionToClipboard(); Toast(L10n.T("duo.copied")); break;
+                case 3:
+                    if (accept && Duo.Active && Confirm(3)) { CloseAndSave(); Toast(Duo.Stop(), 6f); }
+                    break;
+                case 4:
+                    if (accept && ServerWorld.NoServerRunning && Confirm(4)) Toast(ServerWorld.BringBack(), 8f);
+                    break;
+                case 5:
+                    if (dx != 0) { Settings.SourceWorld = ServerWorld.NextSolo(Settings.SourceWorld, dx); _confirmRow = -1; }
+                    else if (accept && ServerWorld.NoServerRunning && Confirm(5)) Toast(ServerWorld.LoadIntoServer(Settings.SourceWorld), 8f);
+                    break;
             }
         }
 
@@ -391,7 +416,7 @@ namespace CouchCoop.UI
         {
             var pads = PadAssignment.Joysticks;
             float rowH = 18 * u, gap = 2 * u, pad = 10 * u;
-            int rows = _tab == Tab.Pads ? Mathf.Max(1, pads.Count) : (_tab == Tab.Duo ? 3 : OptionRows().Count);
+            int rows = _tab == Tab.Pads ? Mathf.Max(1, pads.Count) : (_tab == Tab.Duo ? DuoRows().Count : OptionRows().Count);
             float bodyH = (_tab == Tab.Pads ? 16 * u : 0) + rows * (rowH + gap) + (_tab == Tab.Pads ? 12 * u : 0);
             float w = Mathf.Min(Screen.width - 8 * u, 330 * u);
             float h = Mathf.Min(Screen.height - 8 * u, pad + 16 * u + 6 * u + 18 * u + 8 * u + bodyH + 16 * u + pad);
@@ -489,18 +514,43 @@ namespace CouchCoop.UI
             Change = dir => Settings.FpsLimit = NextFps(Settings.FpsLimit, dir),
         };
 
-        private List<Row> DuoRows() => new List<Row>
+        private List<Row> DuoRows()
         {
-            new Row { Label = L10n.T(Duo.Active ? "duo.restartP2" : "duo.start"), Value = "F9", Enabled = Duo.ServerInstalled },
-            new Row { Label = L10n.T("duo.layout"), Value = "F10", Enabled = true },
-            new Row { Label = L10n.T("duo.copy"), Value = "F6", Enabled = Duo.ConnectionInfo != null },
-        };
+            bool idle = ServerWorld.NoServerRunning;
+            string confirm = L10n.T("confirm.press");
+
+            string backValue;
+            if (!idle) backValue = L10n.T("world.stopFirst.short");
+            else if (!Duo.ServerWorldExists) backValue = "-";
+            else
+            {
+                int target = ServerWorld.BringBackTarget(out bool same);
+                backValue = target < 0 ? L10n.T("world.noFreeSlot.short")
+                    : string.Format(L10n.T(same ? "world.backSame" : "world.backNew"), target);
+            }
+
+            string loadValue = ServerWorld.TryGetSolo(Settings.SourceWorld, out var solo)
+                ? $"< {solo.Index}. {Short(solo.Name)} >" : $"< {Settings.SourceWorld}. - >";
+
+            return new List<Row>
+            {
+                new Row { Label = L10n.T(Duo.Active ? "duo.restartP2" : "duo.start"), Value = "F9", Enabled = Duo.ServerInstalled },
+                new Row { Label = L10n.T("duo.layout"), Value = "F10", Enabled = true },
+                new Row { Label = L10n.T("duo.copy"), Value = "F6", Enabled = Duo.ConnectionInfo != null },
+                new Row { Label = L10n.T("duo.stop"), Value = Confirming(3) ? confirm : "", Enabled = Duo.Active },
+                new Row
+                {
+                    Label = string.Format(L10n.T("world.bringBack"), Short(ServerWorld.ServerWorldName)),
+                    Value = Confirming(4) ? confirm : backValue, Enabled = idle && Duo.ServerWorldExists,
+                },
+                new Row { Label = L10n.T("world.load"), Value = Confirming(5) ? confirm : loadValue, Enabled = idle },
+            };
+        }
 
         private List<Row> OptionRows()
         {
             if (Duo.IsJ2) return new List<Row> { ZoomRow(), FpsRow() };
 
-            bool worldDone = Duo.ServerWorldExists;
             return new List<Row>
             {
                 new Row
@@ -516,11 +566,6 @@ namespace CouchCoop.UI
                 new Row { Label = L10n.T("opt.music"), Check = Settings.MuteJ2Music, Enabled = true, Change = _ => { Settings.MuteJ2Music = !Settings.MuteJ2Music; Toast(L10n.T("opt.restart")); } },
                 new Row { Label = L10n.T("opt.autofill"), Check = Settings.AutoFillJoin, Enabled = true, Change = _ => Settings.AutoFillJoin = !Settings.AutoFillJoin },
                 new Row { Label = L10n.T("opt.autoopen"), Check = Settings.AutoOpenSelector, Enabled = true, Change = _ => Settings.AutoOpenSelector = !Settings.AutoOpenSelector },
-                new Row
-                {
-                    Label = L10n.T("opt.world"), Value = worldDone ? L10n.T("opt.world.done") : $"< {Settings.SourceWorld} >", Enabled = !worldDone,
-                    Change = dir => { if (!Duo.ServerWorldExists) Settings.SourceWorld = (Settings.SourceWorld + dir + 30) % 30; },
-                },
                 ZoomRow(),
                 FpsRow(),
             };

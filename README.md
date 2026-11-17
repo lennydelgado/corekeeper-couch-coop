@@ -71,6 +71,13 @@ Same as Windows: copy `CouchCoop` into `CoreKeeper_Data/StreamingAssets/Mods/`.
 - The first time, the world chosen in *Options › World copied to the server* (default `0`) is **copied** to the local server.
 - From then on, the co-op world lives in `…/Pugstorm/Core Keeper/CouchCoop/Server/` and is separate from your solo save.
 
+### Worlds
+Split screen plays on the local server's own copy of one of your solo worlds (the one in `Duo-sourceWorld`, slot 0 by default). Without a solo world, the server generates a new one named *Couch Co-op*. The hub's *Split screen* tab can move worlds both ways, once split screen is stopped (*Stop split screen*: the server saves and closes):
+- **Bring "…" back to solo**: copies the server world over the solo world it came from, or into a free slot if it is a new one (for example the *Couch Co-op* world the server generated). Your progress together then shows up in your solo world list.
+- **Load into the server**: pick a solo world (left / right), then confirm. It replaces the server world.
+
+Both ask for A twice and back up the world they replace first (`…/CouchCoop/Backups`).
+
 ## Settings
 Edit them in the hub's *Options* tab. They are stored through the game's official mod config API in `…/Pugstorm/Core Keeper/Steam/<id>/mods/<Mod>/`.
 
@@ -80,7 +87,7 @@ Edit them in the hub's *Options* tab. They are stored through the game's officia
 | `Duo-fillWindow` | `true` | Widen the render instead of black bars |
 | `Duo-muteJ2Music` | `true` | Mute P2's music only |
 | `Duo-autoFillJoin` | `true` | Pre-fill *Join With IP* |
-| `Duo-sourceWorld` | `0` | World copied into the server the first time |
+| `Duo-sourceWorld` | `0` | Solo world copied into the server the first time, and the one *Load into the server* offers |
 | `Duo-serverPassword` | random | Local server password |
 | `Display-scale` | `0` | P1 world zoom: `0` = auto, `1`-`4` = fixed |
 | `Display-scaleP2` | `0` | P2 world zoom, set from the P2 window |

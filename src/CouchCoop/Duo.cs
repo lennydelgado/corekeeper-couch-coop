@@ -48,7 +48,7 @@ namespace CouchCoop
         public static bool ServerInstalled => File.Exists(ServerExe);
 
         private static Process _j2Process, _serverProcess;
-        private static bool _started, _j2Pending;
+        private static bool _started, _j2Pending, _stopping;
         private static float _j2PendingSince = -1f;
         private static DateTime _serverStartedUtc;
 
@@ -104,6 +104,12 @@ namespace CouchCoop
             if (IsJ2) return L10n.T("duo.isP2");
             if (!ServerInstalled) return L10n.T("duo.noServer");
             if (_started && !restartP2 && IsRunning(_j2Process)) return L10n.T("duo.running");
+            if (_stopping)
+            {
+                if (!ServerWorld.NoServerRunning) return L10n.T("duo.stillStopping");
+                _stopping = false;
+                _serverProcess = null;
+            }
 
             _started = true;
             Application.runInBackground = true;
@@ -215,7 +221,7 @@ namespace CouchCoop
                     $"-logfile \"{log}\"",
                     $"-datapath \"{dp.Replace('/', '\\')}\"",
                     "-world 0",
-                    "-worldname \"Couch Co-op\"",
+                    $"-worldname \"{ServerWorld.GeneratedName}\"",
                     $"-port {Port}",
                     $"-ip {Ip}",
                     $"-password \"{Settings.ServerPassword}\"",
@@ -236,6 +242,23 @@ namespace CouchCoop
                 Debug.LogError($"{CouchCoopMod.Tag} could not start the dedicated server");
                 Debug.LogException(e);
             }
+        }
+
+        /// <summary>
+        /// Ends split screen from P1: the server saves and stops, P2 closes, P1 goes back to full screen.
+        /// P1 is disconnected from the server and returns to the title screen.
+        /// </summary>
+        public static string Stop()
+        {
+            if (IsJ2 || !_started) return L10n.T("duo.notRunning");
+            StopServer();
+            if (IsRunning(_j2Process)) StopGracefully(SafePid(_j2Process), "P2 window");
+            _started = false;
+            _stopping = true;
+            _j2Pending = false;
+            WindowLayout.Request(WindowLayout.Side.Full, 0f);
+            Debug.Log($"{CouchCoopMod.Tag} split screen stopped by P1");
+            return L10n.T("duo.stopped");
         }
 
         private static void StopServer()
