@@ -60,6 +60,11 @@ namespace CouchCoop
             ["world.broughtBack"] = ("World copied to solo slot {0}. A backup was made", "Monde copié à l'emplacement solo {0}. Une sauvegarde a été faite"),
             ["world.loaded"] = ("\"{0}\" loaded into the server. A backup was made", "\"{0}\" chargé dans le serveur. Une sauvegarde a été faite"),
 
+            ["guard.noSteam"] = ("Split screen needs the Steam version of the game, with Steam running", "L'écran partagé demande la version Steam du jeu, avec Steam lancé"),
+            ["guard.noLicense"] = ("This Steam account does not own Core Keeper", "Ce compte Steam ne possède pas Core Keeper"),
+            ["guard.p2LocalOnly"] = ("The P2 window can only join the local server", "La fenêtre J2 ne peut rejoindre que le serveur local"),
+            ["guard.p2NoSolo"] = ("The P2 window only joins P1: use Join Game", "La fenêtre J2 rejoint seulement J1 : utilise Rejoindre"),
+
             ["status.ready"] = ("Server ready", "Serveur prêt"),
             ["status.starting"] = ("Server starting", "Serveur en démarrage"),
             ["status.stopped"] = ("Server stopped", "Serveur arrêté"),

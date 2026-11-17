@@ -49,7 +49,7 @@ namespace CouchCoop
 
         private static Process _j2Process, _serverProcess;
         private static bool _started, _j2Pending, _stopping;
-        private static float _j2PendingSince = -1f;
+        private static float _j2PendingSince = -1f, _oldJ2StopAt = -1f;
         private static DateTime _serverStartedUtc;
 
         [Serializable]
@@ -70,6 +70,13 @@ namespace CouchCoop
         public static void EarlyInit()
         {
             IsJ2 = IsJ2Process;
+            if (IsJ2 && !Guardrails.ConsumeP2Token())
+            {
+                // Only P1 starts P2, once per launch: a P2 window started any other way closes right away.
+                Debug.LogError($"{CouchCoopMod.Tag} P2 window not started by P1 (missing or used launch token): closing");
+                Application.Quit();
+                return;
+            }
             if (IsJ2)
             {
                 Application.runInBackground = true; // otherwise Unity pauses P2 during its loading screen (no focus)
@@ -103,6 +110,8 @@ namespace CouchCoop
         {
             if (IsJ2) return L10n.T("duo.isP2");
             if (!ServerInstalled) return L10n.T("duo.noServer");
+            string license = Guardrails.CheckLicense();
+            if (license != null) return license;
             if (_started && !restartP2 && IsRunning(_j2Process)) return L10n.T("duo.running");
             if (_stopping)
             {
@@ -123,6 +132,12 @@ namespace CouchCoop
                 WorldBackup.Save(WorldBackup.Session, "local server world, before a split-screen session",
                     Path.Combine(ServerDataPath, "worlds", "0.world.gzip"), Path.Combine(ServerDataPath, "worldinfos", "0.worldinfo"));
                 StartServer();
+            }
+            if (restartP2 && IsRunning(_j2Process))
+            {
+                // Never two P2 windows: the old one closes first, the new one opens once it is gone (Tick).
+                StopGracefully(SafePid(_j2Process), "P2 window");
+                _oldJ2StopAt = Time.unscaledTime;
             }
             if (restartP2 || !IsRunning(_j2Process)) _j2Pending = true; // P2 opens once the server is ready
 
@@ -153,6 +168,16 @@ namespace CouchCoop
                 return;
             }
             if (!_j2Pending) return;
+            if (IsRunning(_j2Process))
+            {
+                // Restart: wait for the old P2 window to close. A window that hangs is forced after 10 s.
+                if (_oldJ2StopAt >= 0f && Time.unscaledTime - _oldJ2StopAt > 10f)
+                {
+                    StopGracefully(SafePid(_j2Process), "P2 window (not answering)", force: true);
+                    _oldJ2StopAt = -1f;
+                }
+                return;
+            }
             if (_j2PendingSince < 0f) _j2PendingSince = Time.unscaledTime;
             bool timeout = Time.unscaledTime - _j2PendingSince > 180f;
             if (!ServerReady && !timeout) return;
@@ -225,7 +250,7 @@ namespace CouchCoop
                     $"-port {Port}",
                     $"-ip {Ip}",
                     $"-password \"{Settings.ServerPassword}\"",
-                    "-maxplayers 4");
+                    $"-maxplayers {Guardrails.MaxPlayers}");
                 var psi = new ProcessStartInfo(ServerExe, args) { UseShellExecute = false, WorkingDirectory = ServerDir };
                 // The server must not pose as the game (environment inherited from Steam).
                 foreach (var v in new[] { "SteamAppId", "SteamGameId", "SteamOverlayGameId" }) psi.EnvironmentVariables.Remove(v);
@@ -284,6 +309,8 @@ namespace CouchCoop
 
         private static void LaunchJ2Window()
         {
+            if (IsRunning(_j2Process)) return; // one P2 window at a time
+            _oldJ2StopAt = -1f;
             try
             {
                 string exe = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "CoreKeeper.exe"));
@@ -292,7 +319,7 @@ namespace CouchCoop
                 string log = Path.Combine(dir, "Player.log").Replace('/', '\\');
                 var passthrough = Environment.GetCommandLineArgs().Skip(1)
                     .Where(a => a.StartsWith("-force-", StringComparison.OrdinalIgnoreCase));
-                string args = $"{P2Arg} {P1PidArg} {SafePid(Process.GetCurrentProcess())} -popupwindow -screen-fullscreen 0 -logFile \"{log}\" " + string.Join(" ", passthrough);
+                string args = $"{P2Arg} {Guardrails.TokenArg} {Guardrails.NewP2Token()} {P1PidArg} {SafePid(Process.GetCurrentProcess())} -popupwindow -screen-fullscreen 0 -logFile \"{log}\" " + string.Join(" ", passthrough);
                 _j2Process = Process.Start(new ProcessStartInfo(exe, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
                 Debug.Log($"{CouchCoopMod.Tag} P2 window started");
             }

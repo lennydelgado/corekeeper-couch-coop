@@ -98,6 +98,11 @@ Edit them in the hub's *Options* tab. They are stored through the game's officia
 ## How it works
 - **Why a dedicated server?** The Steam client can only host through Steam's relay, and both windows use the same Steam account. The official dedicated server accepts direct IP connections (`-port`), so both windows connect to it on `127.0.0.1`.
 - **Two instances, one license.** P2 is a second instance of the game launched by the mod. This is the same approach other split-screen tools use. It is not officially endorsed by Pugstorm.
+- **Limits.** Split screen stays a same-couch feature:
+  - it needs the Steam version of the game, owned by the account that runs it;
+  - the local server takes 2 players and only listens on `127.0.0.1`;
+  - only P1 can open the P2 window, once per launch, and P2 closes when P1 quits;
+  - the P2 window can only join that local server: no solo game, no hosting, no other server.
 - **Mod permissions.** Both mods are precompiled DLLs that require `accessesExtraAssemblies` and `skipSafetyChecks`. They use Harmony (shipped with the game), call Win32 to place windows, and start processes: the dedicated server and the P2 window. The full source code is in this repository.
 
 ## Troubleshooting
