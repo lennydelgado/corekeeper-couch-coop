@@ -55,7 +55,7 @@ Comme sous Windows : copie `CouchCoop` dans `CoreKeeper_Data/StreamingAssets/Mod
 
 | | Manette | Clavier |
 |---|---|---|
-| Ouvrir le hub | **Select + Start** maintenus 1 s | **F8** |
+| Ouvrir le hub | **Select + Start** (ou les deux clics de stick, **L3 + R3**) maintenus 1 s | **F8** |
 | Changer d'onglet | **LB / RB** | Q / E |
 | Lancer l'écran partagé | hub › *Écran partagé* › *Lancer* | **F9** |
 | Moitié d'écran ⇄ plein écran | hub › *Écran partagé* | **F10** |

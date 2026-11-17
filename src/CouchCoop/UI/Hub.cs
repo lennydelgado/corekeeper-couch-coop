@@ -6,7 +6,7 @@ namespace CouchCoop.UI
 {
     /// <summary>
     /// The mod's UI, fully usable with a controller (TV, Steam Deck):
-    ///  - a 3-tab hub (Controllers / Split screen / Options): hold Select+Start for 1 s, or F8;
+    ///  - a 3-tab hub (Controllers / Split screen / Options): hold Select+Start (or both stick clicks) for 1 s, or F8;
     ///    in the P2 window the same gesture (P2's controller) opens P2's own options (zoom, frame cap);
     ///  - a connection card (in split screen) and toasts;
     ///  - keyboard shortcuts: F8 hub, F9 start split screen, F10 half/full screen, F6 copy, F7 card, F11 diagnostics.
@@ -116,13 +116,40 @@ namespace CouchCoop.UI
             bool held = false;
             foreach (var j in PadAssignment.Joysticks)
             {
-                if (!IsMine(j)) continue; // P2's combo must not open P1's menu, and the other way round
                 var gp = j.GetTemplate<IGamepadTemplate>();
-                if (gp != null && gp.center1.value && gp.center2.value) { held = true; break; }
+                LogCenterButtons(j, gp);
+                if (!IsMine(j)) continue; // P2's combo must not open P1's menu, and the other way round
+                if (gp == null) continue;
+                // Select + Start, or both stick clicks (some Xbox controllers over Bluetooth never report View).
+                if ((gp.center1.value && gp.center2.value) || (gp.leftStick.press.value && gp.rightStick.press.value)) { held = true; break; }
             }
             if (!held) { _comboStart = -1f; return false; }
             if (_comboStart < 0f) _comboStart = Time.unscaledTime;
             return Time.unscaledTime - _comboStart >= ComboHoldSeconds;
+        }
+
+        private static readonly HashSet<string> _loggedPads = new HashSet<string>();
+
+        /// <summary>
+        /// Logs, once per controller, how its Select / Start buttons are seen (template or not, slot, raw button
+        /// names), the first time one of them or any button is pressed. To diagnose a combo that does not open the hub.
+        /// </summary>
+        private static void LogCenterButtons(Joystick j, IGamepadTemplate gp)
+        {
+            string key = PadAssignment.KeyOf(j);
+            if (_loggedPads.Contains(key)) return;
+            bool pressed = gp != null ? gp.center1.justPressed || gp.center2.justPressed : j.GetAnyButtonDown();
+            if (!pressed) return;
+            _loggedPads.Add(key);
+            string buttons = "";
+            try
+            {
+                for (int i = 0; i < j.buttonCount; i++)
+                    if (j.GetButton(i)) buttons += $" [{i}:{j.ButtonElementIdentifiers[i].name}]";
+            }
+            catch { }
+            Debug.Log($"{CouchCoopMod.Tag} [pads] {j.name}: template={(gp != null ? "gamepad" : "none")} slot={PadStore.GetSlot(key)} mine={IsMine(j)} "
+                + $"select={(gp != null && gp.center1.value)} start={(gp != null && gp.center2.value)} pressed:{buttons}");
         }
 
         /// <summary>Controllers this window listens to outside the Controllers tab (P1 window: all but P2's).</summary>

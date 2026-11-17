@@ -55,7 +55,7 @@ Same as Windows: copy `CouchCoop` into `CoreKeeper_Data/StreamingAssets/Mods/`.
 
 | | Controller | Keyboard |
 |---|---|---|
-| Open the hub | hold **Select + Start** for 1 s | **F8** |
+| Open the hub | hold **Select + Start** (or both stick clicks, **L3 + R3**) for 1 s | **F8** |
 | Switch tab | **LB / RB** | Q / E |
 | Start split screen | hub › *Split screen* › *Start* | **F9** |
 | Half screen ⇄ full screen | hub › *Split screen* | **F10** |
