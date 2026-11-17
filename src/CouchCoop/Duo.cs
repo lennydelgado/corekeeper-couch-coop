@@ -70,6 +70,13 @@ namespace CouchCoop
         public static void EarlyInit()
         {
             IsJ2 = IsJ2Process;
+            if (IsJ2 && !Guardrails.ConsumeP2Token())
+            {
+                // Only P1 starts P2, once per launch: a P2 window started any other way closes right away.
+                Debug.LogError($"{CouchCoopMod.Tag} P2 window not started by P1 (missing or used launch token): closing");
+                Application.Quit();
+                return;
+            }
             if (IsJ2)
             {
                 Application.runInBackground = true; // otherwise Unity pauses P2 during its loading screen (no focus)
@@ -103,6 +110,8 @@ namespace CouchCoop
         {
             if (IsJ2) return L10n.T("duo.isP2");
             if (!ServerInstalled) return L10n.T("duo.noServer");
+            string license = Guardrails.CheckLicense();
+            if (license != null) return license;
             if (_started && !restartP2 && IsRunning(_j2Process)) return L10n.T("duo.running");
             if (_stopping)
             {
@@ -225,7 +234,7 @@ namespace CouchCoop
                     $"-port {Port}",
                     $"-ip {Ip}",
                     $"-password \"{Settings.ServerPassword}\"",
-                    "-maxplayers 4");
+                    $"-maxplayers {Guardrails.MaxPlayers}");
                 var psi = new ProcessStartInfo(ServerExe, args) { UseShellExecute = false, WorkingDirectory = ServerDir };
                 // The server must not pose as the game (environment inherited from Steam).
                 foreach (var v in new[] { "SteamAppId", "SteamGameId", "SteamOverlayGameId" }) psi.EnvironmentVariables.Remove(v);
@@ -292,7 +301,7 @@ namespace CouchCoop
                 string log = Path.Combine(dir, "Player.log").Replace('/', '\\');
                 var passthrough = Environment.GetCommandLineArgs().Skip(1)
                     .Where(a => a.StartsWith("-force-", StringComparison.OrdinalIgnoreCase));
-                string args = $"{P2Arg} {P1PidArg} {SafePid(Process.GetCurrentProcess())} -popupwindow -screen-fullscreen 0 -logFile \"{log}\" " + string.Join(" ", passthrough);
+                string args = $"{P2Arg} {Guardrails.TokenArg} {Guardrails.NewP2Token()} {P1PidArg} {SafePid(Process.GetCurrentProcess())} -popupwindow -screen-fullscreen 0 -logFile \"{log}\" " + string.Join(" ", passthrough);
                 _j2Process = Process.Start(new ProcessStartInfo(exe, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
                 Debug.Log($"{CouchCoopMod.Tag} P2 window started");
             }

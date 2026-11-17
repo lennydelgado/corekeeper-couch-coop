@@ -40,7 +40,8 @@ namespace CouchCoop
                 {
                     typeof(AssignJoysticksPatch), typeof(TouchpadMapsPatch), typeof(ControllerConnectedPatch),
                     typeof(ControllerDisconnectedPatch), typeof(PixelWidthPatch), typeof(PixelHeightPatch),
-                    typeof(BilinearQuadPatch), typeof(JoinMenuPatch), typeof(FramePacingPatch), typeof(LightBudgetPatch)
+                    typeof(BilinearQuadPatch), typeof(JoinMenuPatch), typeof(FramePacingPatch), typeof(LightBudgetPatch),
+                    typeof(P2ConnectPatch), typeof(P2SingleplayerPatch), typeof(P2StartEcsPatch)
                 })
                 {
                     try { _harmony.CreateClassProcessor(t).Patch(); }

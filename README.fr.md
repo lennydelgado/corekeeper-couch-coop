@@ -84,6 +84,11 @@ Modifiables dans l'onglet *Options* du hub. Ils sont stockés via l'API officiel
 ## Fonctionnement
 - **Pourquoi un serveur dédié ?** Le client Steam ne sait héberger que via le relais Steam, et les deux fenêtres utilisent le même compte Steam. Le serveur dédié officiel accepte les connexions directes par IP (`-port`) : les deux fenêtres s'y connectent sur `127.0.0.1`.
 - **Deux instances, une licence.** J2 est une 2e instance du jeu lancée par le mod. C'est la même approche que les autres outils d'écran partagé. Ce n'est pas officiellement approuvé par Pugstorm.
+- **Limites.** L'écran partagé reste une fonction pour jouer sur le même canapé :
+  - il demande la version Steam du jeu, possédée par le compte qui la lance ;
+  - le serveur local accepte 2 joueurs et n'écoute que sur `127.0.0.1` ;
+  - seul J1 peut ouvrir la fenêtre J2, une fois par lancement, et J2 se ferme quand J1 quitte ;
+  - la fenêtre J2 ne peut rejoindre que ce serveur local : pas de partie solo, pas d'hébergement, pas d'autre serveur.
 - **Permissions du mod.** Les deux mods sont des DLL précompilées qui exigent `accessesExtraAssemblies` et `skipSafetyChecks`. Ils utilisent Harmony (fourni avec le jeu), appellent Win32 pour placer les fenêtres et lancent des processus : le serveur dédié et la fenêtre J2. Tout le code source est dans ce dépôt.
 
 ## Dépannage

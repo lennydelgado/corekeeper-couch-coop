@@ -27,7 +27,16 @@ namespace CouchCoop.UI
         private string _toast;
         private float _toastUntil;
 
-        private void Awake() => useGUILayout = false; // no IMGUI layout pass: we only draw with absolute rects
+        private static Hub _instance;
+
+        private void Awake()
+        {
+            useGUILayout = false; // no IMGUI layout pass: we only draw with absolute rects
+            _instance = this;
+        }
+
+        /// <summary>Shows a toast from anywhere (patches, background checks).</summary>
+        public static void Notify(string msg, float seconds = 3f) => _instance?.Toast(msg, seconds);
 
         private void OnEnable() => PadAssignment.PadsChanged += OnPadsChanged;
         private void OnDisable() => PadAssignment.PadsChanged -= OnPadsChanged;
