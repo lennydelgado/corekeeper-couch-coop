@@ -16,6 +16,12 @@ namespace CouchCoop
     ///    free solo slot;
     ///  - "load": a solo world replaces the server world.
     /// Both only run while no server is running, so the files are final and nothing writes them meanwhile.
+    ///
+    /// The dedicated server never writes a worldinfo (SaveManager.WriteWorldInfo only logs an error there):
+    ///  - a world it generated itself (new player without a solo world) has none: one is created when it is
+    ///    brought back, named like the server world;
+    ///  - a copied world keeps the worldinfo it was copied with, so bringing it back over the same solo world
+    ///    keeps the solo worldinfo. The game refreshes guid, seed and bosses from the world when it loads it.
     /// </summary>
     internal static class ServerWorld
     {
@@ -75,19 +81,22 @@ namespace CouchCoop
             return i;
         }
 
-        public static string ServerWorldName => ReadHeader(ServerInfoFile, out var h) && !string.IsNullOrEmpty(h.name) ? h.name : "?";
+        /// <summary>Name the server gives a world it generates (-worldname in Duo.StartServer).</summary>
+        public const string GeneratedName = "Couch Co-op";
+
+        public static string ServerWorldName => ReadHeader(ServerInfoFile, out var h) && !string.IsNullOrEmpty(h.name) ? h.name : GeneratedName;
 
         /// <summary>Solo slot the server world goes back to: the one with the same guid, else the first free one (-1 if full).</summary>
         public static int BringBackTarget(out bool sameWorld)
         {
             sameWorld = false;
-            if (!ReadHeader(ServerInfoFile, out var server)) return -1;
+            ReadHeader(ServerInfoFile, out var server); // none for a world the server generated itself
             int free = -1;
             for (int i = 0; i < MaxSlots; i++)
             {
                 if (TryGetSolo(i, out var s))
                 {
-                    if (!string.IsNullOrEmpty(server.guid) && s.Guid == server.guid) { sameWorld = true; return i; }
+                    if (server != null && !string.IsNullOrEmpty(server.guid) && s.Guid == server.guid) { sameWorld = true; return i; }
                 }
                 else if (free < 0 && !SafeFile.Exists(SoloWorld(i)) && !SafeFile.Exists(SoloInfo(i))) free = i;
             }
@@ -122,7 +131,31 @@ namespace CouchCoop
             if (target < 0) return L10n.T("world.noFreeSlot");
 
             if (same) WorldBackup.Save($"solo world {target} before bringing the server world back", SoloWorld(target), SoloInfo(target));
-            if (!Copy(ServerWorldFile, ServerInfoFile, SoloWorld(target), SoloInfo(target))) return L10n.T("world.failed");
+            try
+            {
+                SafeFile.WriteAllBytes(SoloWorld(target), File.ReadAllBytes(ServerWorldFile));
+                if (!same)
+                {
+                    // New solo slot: it needs a worldinfo (name, date). The server's, or a new one.
+                    if (SafeFile.Exists(ServerInfoFile)) SafeFile.WriteAllBytes(SoloInfo(target), File.ReadAllBytes(ServerInfoFile));
+                    else SafeFile.WriteAllText(SoloInfo(target), JsonUtility.ToJson(new WorldInfo
+                    {
+                        version = WorldInfo.CURRENT_VERSION,
+                        name = GeneratedName,
+                        creationDate = new CreationDate(DateTime.Now),
+                    }));
+                    string gen = Path.Combine(Duo.ServerDataPath, "worldgenparams", "0.json");
+                    string genTo = MainFs?.Rel2Abs($"worldgenparams/{target}.json");
+                    if (genTo != null && SafeFile.Exists(gen)) SafeFile.WriteAllBytes(genTo, File.ReadAllBytes(gen));
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"{CouchCoopMod.Tag} world copy failed: {e.Message}");
+                return L10n.T("world.failed");
+            }
+            // The game read every worldinfo at startup: refresh this slot so the world list shows it now.
+            try { Manager.saves.ReloadWorldInfo(target); } catch (Exception e) { Debug.LogWarning($"{CouchCoopMod.Tag} world list refresh: {e.Message}"); }
             Debug.Log($"{CouchCoopMod.Tag} server world copied into solo slot {target} (same world: {same})");
             return string.Format(L10n.T("world.broughtBack"), target);
         }

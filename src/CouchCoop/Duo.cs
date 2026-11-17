@@ -221,7 +221,7 @@ namespace CouchCoop
                     $"-logfile \"{log}\"",
                     $"-datapath \"{dp.Replace('/', '\\')}\"",
                     "-world 0",
-                    "-worldname \"Couch Co-op\"",
+                    $"-worldname \"{ServerWorld.GeneratedName}\"",
                     $"-port {Port}",
                     $"-ip {Ip}",
                     $"-password \"{Settings.ServerPassword}\"",
