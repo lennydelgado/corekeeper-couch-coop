@@ -10,6 +10,9 @@ namespace CouchCoop
     /// <summary>
     /// Snaps the game window, borderless, to one half of the screen it is on (Win32; under Wine the windows
     /// are real macOS/X11 windows, so it also works on a TV over HDMI).
+    /// Halves use the monitor's work area, not the whole monitor: on macOS the menu bar (and the Dock when it is
+    /// shown) is outside the work area, and macOS keeps windows below the menu bar, which pushed the top half down
+    /// over the bottom one. With the menu bar set to hide automatically, the work area is the whole screen.
     /// </summary>
     internal static class WindowLayout
     {
@@ -45,13 +48,13 @@ namespace CouchCoop
             if (_pending == Side.None || Time.unscaledTime < _applyAt) return;
             IntPtr hwnd = FindOwnWindow();
             if (hwnd == IntPtr.Zero) { _applyAt = Time.unscaledTime + 1f; return; }
-            if (!GetMonitorRect(hwnd, out var mon)) { _pending = Side.None; return; }
+            if (!GetMonitorRects(hwnd, out var full, out var mon)) { _pending = Side.None; return; }
             int monW = mon.right - mon.left, monH = mon.bottom - mon.top;
 
             if (_pending == Side.Full)
             {
                 SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(WS_OVERLAPPEDWINDOW | WS_VISIBLE));
-                Screen.SetResolution(monW, monH, FullScreenMode.FullScreenWindow);
+                Screen.SetResolution(full.right - full.left, full.bottom - full.top, FullScreenMode.FullScreenWindow);
                 Current = Side.Full;
                 _pending = Side.None;
                 return;
@@ -74,7 +77,7 @@ namespace CouchCoop
 
             SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(WS_POPUP | WS_VISIBLE));
             SetWindowPos(hwnd, IntPtr.Zero, _x, _y, _w, _h, SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
-            Debug.Log($"{CouchCoopMod.Tag} window {_pending}: {_x},{_y} {_w}x{_h} (screen {monW}x{monH})");
+            Debug.Log($"{CouchCoopMod.Tag} window {_pending}: {_x},{_y} {_w}x{_h} (work area {mon.left},{mon.top} {monW}x{monH}, screen {full.right - full.left}x{full.bottom - full.top})");
             Diagnostics.Schedule(1.5f);
             Current = _pending;
             _pending = Side.None;
@@ -130,14 +133,16 @@ namespace CouchCoop
             }
         }
 
-        private static bool GetMonitorRect(IntPtr hwnd, out RECT rect)
+        private static bool GetMonitorRects(IntPtr hwnd, out RECT monitor, out RECT work)
         {
-            rect = default;
+            monitor = work = default;
             try
             {
                 var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
                 if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), ref info)) return false;
-                rect = info.rcMonitor;
+                monitor = info.rcMonitor;
+                work = info.rcWork;
+                if (work.right - work.left < 200 || work.bottom - work.top < 200) work = monitor; // bogus work area
                 return true;
             }
             catch { return false; }
