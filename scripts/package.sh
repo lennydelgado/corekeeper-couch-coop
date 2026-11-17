@@ -31,14 +31,14 @@ zipdir "$STAGE/fixes" "$DIST/NotProtonFixes-$VERSION.zip"
 # Complete macOS pack (one-click install, no .NET SDK needed)
 mkdir -p "$STAGE/mac/build" "$STAGE/mac/scripts"
 cp -R "$ROOT/build/CouchCoop" "$ROOT/build/NotProtonFixes" "$STAGE/mac/build/"
-cp "$ROOT/scripts/install-macos.sh" "$STAGE/mac/scripts/"
+cp "$ROOT/scripts/install-macos.sh" "$ROOT/scripts/macos-boost.sh" "$STAGE/mac/scripts/"
 cp "${DOCS[@]}" "$STAGE/mac/"
 cat > "$STAGE/mac/INSTALL-macOS.command" <<'EOF'
 #!/usr/bin/env bash
 # Double-click to install (Core Keeper must be closed).
 cd "$(dirname "$0")" && SKIP_BUILD=1 ./scripts/install-macos.sh; read -r -p "Press Enter to close..."
 EOF
-chmod +x "$STAGE/mac/INSTALL-macOS.command" "$STAGE/mac/scripts/install-macos.sh"
+chmod +x "$STAGE/mac/INSTALL-macOS.command" "$STAGE/mac/scripts/"*.sh
 zipdir "$STAGE/mac" "$DIST/CoreKeeper-CouchCoop-macOS-$VERSION.zip"
 
 # mod.io: the game's loader expects ModManifest.json at the root of the mod.
