@@ -91,6 +91,8 @@ namespace CouchCoop.UI
                 _hadMyPad = PadAssignment.HasConnectedPadForThisWindow();
             }
 
+            LogButtonPresses();
+
             if (Duo.IsJ2 && Time.frameCount % 120 == 0 && PadStore.Reload())
             {
                 PadAssignment.Apply("P1 changed the controllers");
@@ -126,7 +128,6 @@ namespace CouchCoop.UI
             foreach (var j in PadAssignment.Joysticks)
             {
                 var gp = j.GetTemplate<IGamepadTemplate>();
-                LogCenterButtons(j, gp);
                 if (!IsMine(j)) continue; // P2's combo must not open P1's menu, and the other way round
                 if (gp == null) continue;
                 // Select + Start, or both stick clicks (some Xbox controllers over Bluetooth never report View).
@@ -137,28 +138,33 @@ namespace CouchCoop.UI
             return Time.unscaledTime - _comboStart >= ComboHoldSeconds;
         }
 
-        private static readonly HashSet<string> _loggedPads = new HashSet<string>();
+        private static int _padLogLines;
+        private const int MaxPadLogLines = 80;
 
         /// <summary>
-        /// Logs, once per controller, how its Select / Start buttons are seen (template or not, slot, raw button
-        /// names), the first time one of them or any button is pressed. To diagnose a combo that does not open the hub.
+        /// Logs each button press of every controller (index, raw name, how Select / Start are read, whether this
+        /// window listens to it), up to 80 lines per launch. To diagnose a combo that does not open the hub.
         /// </summary>
-        private static void LogCenterButtons(Joystick j, IGamepadTemplate gp)
+        private void LogButtonPresses()
         {
-            string key = PadAssignment.KeyOf(j);
-            if (_loggedPads.Contains(key)) return;
-            bool pressed = gp != null ? gp.center1.justPressed || gp.center2.justPressed : j.GetAnyButtonDown();
-            if (!pressed) return;
-            _loggedPads.Add(key);
-            string buttons = "";
-            try
+            if (_padLogLines >= MaxPadLogLines) return;
+            foreach (var j in PadAssignment.Joysticks)
             {
-                for (int i = 0; i < j.buttonCount; i++)
-                    if (j.GetButton(i)) buttons += $" [{i}:{j.ButtonElementIdentifiers[i].name}]";
+                if (!j.GetAnyButtonDown()) continue;
+                string pressed = "";
+                try
+                {
+                    for (int i = 0; i < j.buttonCount; i++)
+                        if (j.GetButtonDown(i)) pressed += $" [{i}:{j.ButtonElementIdentifiers[i].name}]";
+                }
+                catch { }
+                var gp = j.GetTemplate<IGamepadTemplate>();
+                string key = PadAssignment.KeyOf(j);
+                Debug.Log($"{CouchCoopMod.Tag} [pads] {Time.unscaledTime:0.00} {j.name} slot={PadStore.GetSlot(key)} mine={IsMine(j)} hub={(_open ? "open" : "closed")} "
+                    + $"template={(gp != null ? "gamepad" : "none")} select={(gp != null && gp.center1.value)} start={(gp != null && gp.center2.value)} "
+                    + $"L3={(gp != null && gp.leftStick.press.value)} R3={(gp != null && gp.rightStick.press.value)} down:{pressed}");
+                if (++_padLogLines >= MaxPadLogLines) return;
             }
-            catch { }
-            Debug.Log($"{CouchCoopMod.Tag} [pads] {j.name}: template={(gp != null ? "gamepad" : "none")} slot={PadStore.GetSlot(key)} mine={IsMine(j)} "
-                + $"select={(gp != null && gp.center1.value)} start={(gp != null && gp.center2.value)} pressed:{buttons}");
         }
 
         /// <summary>Controllers this window listens to outside the Controllers tab (P1 window: all but P2's).</summary>
