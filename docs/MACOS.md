@@ -78,3 +78,7 @@ The file system bugs above come from NotProton's patched Wine. Other setups may 
 - **"Mod load failed"**: run `INSTALL-macOS.command` again.
 - **The game quits during the first load**: NotProton Fixes is not loaded. Check that `Mods/NotProtonFixes` exists, then run the installer again.
 - **My progress disappeared**: check for `*.pugtmp` files in the save folder. Rename them without the `.pugtmp` extension (game closed) to recover the last save.
+- **Split screen still lags or freezes for a few seconds**: macOS may treat the windowless local server (and the
+  window without focus) as background work and slow it down. Run `scripts/macos-boost.sh` in Terminal while you
+  play (optional, it stops by itself when the game closes). If it still lags, lower *Light quality* and *SSAO* in both windows (each window has its own settings),
+  and check the `[perf]` lines in `Player.log` / `J2/Player.log`.

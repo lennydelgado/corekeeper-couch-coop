@@ -214,6 +214,7 @@ namespace CouchCoop
                 _serverStartedUtc = DateTime.UtcNow;
                 _serverProcess = Process.Start(psi);
                 Debug.Log($"{CouchCoopMod.Tag} dedicated server started ({ServerExe})");
+                Perf.BoostServer(_serverProcess);
             }
             catch (Exception e)
             {

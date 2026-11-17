@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0
+
+### CouchCoop
+- Fixed blurry, pixelated text at higher zooms: the game's UI now always renders at its native height, whatever the world zoom.
+- Fixed the selection bar on the title menu sitting one line too high.
+- P2 can open its own options (Select + Start or F8) and set its own zoom (`Display-scaleP2`).
+- Fixed input lag in split screen: the game drops the window without focus to 30 fps. Both windows now run at the same cap (`Performance-fpsLimit`, 60 by default), with V-Sync off and one queued frame.
+- The local server runs at a higher priority.
+- The mod's menus no longer scan all sprites every 2 seconds.
+- Freezes longer than 250 ms are logged with a timestamp (`[perf]` lines), with a summary every minute.
+- macOS: optional `scripts/macos-boost.sh` keeps macOS from throttling the game processes (see docs/MACOS.md).
+
 ## 1.0.0 — first public release
 Split into two mods: **CouchCoop**, for every platform, and **NotProtonFixes**, for macOS.
 
